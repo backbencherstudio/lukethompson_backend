@@ -286,6 +286,13 @@ model UserSetting {
   @@map("user_settings")
 }
 
+enum LogStopStep {
+  ARRIVAL_TIME
+  DOCK_IN_TIME
+  COMPLETED_TIME
+  DEPARTURE_TIME
+}
+
 model SpotLog {
   id         String   @id @default(cuid())
   created_at DateTime @default(now())
@@ -295,6 +302,8 @@ model SpotLog {
   docked_at    DateTime?
   completed_at DateTime?
   departed_at  DateTime?
+
+  current_step LogStopStep?
 
   user_id   String?
   user      User?      @relation(fields: [user_id], references: [id])
@@ -308,16 +317,18 @@ model Location {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  address String?
+  location_at LogStopStep?
+
   city    String?
   state   String?
   country String?
+  address String?
   zip     String?
   lat     Decimal?
   lng     Decimal?
 
   spot_log_id String?
-  spot_log    SpotLog? @relation(fields: [spot_log_id], references: [id])
+  spot_log    SpotLog? @relation(fields: [spot_log_id], references: [id], onDelete: Cascade)
 
   @@map("locations")
 }
