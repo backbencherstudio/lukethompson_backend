@@ -274,12 +274,4 @@ export class SpotlogService {
       },
     });
   }
-
-  update(id: number, updateSpotlogDto: UpdateSpotlogDto) {
-    return `This action updates a #${id} spotlog`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} spotlog`;
-  }
 }

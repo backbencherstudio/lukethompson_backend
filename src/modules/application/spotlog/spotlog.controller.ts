@@ -109,18 +109,70 @@ export class SpotlogController {
     return this.spotlogService.getAllSpotLogs(query, user_id);
   }
 
+  @ApiOperation({ summary: 'Get a single spot log by ID' })
+  @ApiResponse({
+    status: 200,
+    description: 'Spot log fetched successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Spot log fetched successfully' },
+        data: {
+          oneOf: [
+            {
+              type: 'object',
+              title: 'In Progress Schema',
+              description:
+                'Response when the log is not yet completed (Before Departure)',
+              properties: {
+                id: { type: 'string', example: 'cl0a1b2c3d4e5f6g7h8i9j0k' },
+                arrived_at: { type: 'string', format: 'date-time' },
+                docked_at: {
+                  type: 'string',
+                  format: 'date-time',
+                  nullable: true,
+                },
+                completed_at: {
+                  type: 'string',
+                  format: 'date-time',
+                  nullable: true,
+                },
+                departed_at: {
+                  type: 'string',
+                  format: 'date-time',
+                  nullable: true,
+                },
+                current_step: { type: 'string', example: 'ARRIVAL_TIME' },
+              },
+            },
+            {
+              type: 'object',
+              title: 'Completed Schema',
+              description:
+                'Response when the log is completed (Departure recorded)',
+              properties: {
+                id: { type: 'string', example: 'cl0a1b2c3d4e5f6g7h8i9j0k' },
+                rate_per_hour: { type: 'number', example: 100 },
+                free_wait_time: { type: 'number', example: 2 },
+                billable_time: { type: 'string', example: '2.50' },
+                arrival_departure_time: { type: 'string', example: '5.90' },
+                address: {
+                  type: 'string',
+                  example: 'Warehouse A',
+                  nullable: true,
+                },
+                detention: { type: 'string', example: '250.00' },
+                lost: { type: 'string', example: '250.00' },
+              },
+            },
+          ],
+        },
+      },
+    },
+  })
   @Get(':id')
   getOneSpotLog(@Param('id') id: string, @GetUser('id') user_id: string) {
     return this.spotlogService.getOneSpotLog(id, user_id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateSpotlogDto: UpdateSpotlogDto) {
-    return this.spotlogService.update(+id, updateSpotlogDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.spotlogService.remove(+id);
   }
 }
