@@ -4,6 +4,8 @@ import { PaymentTransactionModule } from './payment-transaction/payment-transact
 import { UserModule } from './user/user.module';
 import { NotificationModule } from './notification/notification.module';
 import { StopLogModule } from './stoplog/stoplog.module';
+import { SettingModule } from './setting/setting.module';
+import { OverviewModule } from './overview/overview.module';
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import { StopLogModule } from './stoplog/stoplog.module';
     UserModule,
     NotificationModule,
     StopLogModule,
+    SettingModule,
+    OverviewModule,
   ],
 })
 export class AdminModule {}

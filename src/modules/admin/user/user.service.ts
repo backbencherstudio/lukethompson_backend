@@ -38,52 +38,77 @@ export class UserService {
   }
 
   async findAll({
-    q,
-    type,
-    approved,
+    search,
+    page = 1,
+    limit = 10,
+    type = 'user',
   }: {
-    q?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
     type?: string;
-    approved?: string;
   }) {
     try {
-      const where_condition = {};
-      if (q) {
+      const skip = (page - 1) * limit;
+      const where_condition: any = {
+        type: type,
+      };
+
+      if (search) {
         where_condition['OR'] = [
-          { name: { contains: q, mode: 'insensitive' } },
-          { email: { contains: q, mode: 'insensitive' } },
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
         ];
       }
 
-      if (type) {
-        where_condition['type'] = type;
-      }
+      const [total, users] = await Promise.all([
+        this.prisma.user.count({ where: where_condition }),
+        this.prisma.user.findMany({
+          where: where_condition,
+          skip: Number(skip),
+          take: Number(limit),
+          orderBy: { created_at: 'desc' },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatar: true,
+            phone_number: true,
+            status: true,
+            created_at: true,
+            _count: {
+              select: { stop_logs: true },
+            },
+          },
+        }),
+      ]);
 
-      if (approved) {
-        where_condition['approved_at'] =
-          approved == 'approved' ? { not: null } : { equals: null };
-      }
+      const formattedUsers = users.map((user) => {
+        let statusLabel = 'Active';
+        if (user.status === 0) statusLabel = 'Pending';
+        if (user.status === -1) statusLabel = 'Banned';
 
-      const users = await this.prisma.user.findMany({
-        where: {
-          ...where_condition,
-        },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone_number: true,
-          address: true,
-          type: true,
-          approved_at: true,
-          created_at: true,
-          updated_at: true,
-        },
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          avatar: user.avatar,
+          phone_number: user.phone_number,
+          subscription_plan: 'Free Plan', // Defaulting to Free Plan as no specific plan model found
+          total_stops: user._count.stop_logs,
+          created_at: user.created_at,
+          status: statusLabel,
+        };
       });
 
       return {
         success: true,
-        data: users,
+        data: formattedUsers,
+        meta_data: {
+          total,
+          page: Number(page),
+          limit: Number(limit),
+        },
       };
     } catch (error) {
       return {

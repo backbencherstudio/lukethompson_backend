@@ -1,80 +1,95 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { CreateStopLogDto } from './dto/create-stoplog.dto';
 import { UpdateStopLogDto } from './dto/update-stoplog.dto';
-import { LogStopStep, PutStopLogDto } from '../../application/stoplog/dto/create-stoplog.dto';
+import {
+  LogStopStep,
+  PutStopLogDto,
+} from '../../application/stoplog/dto/create-stoplog.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { ResponseHelper } from 'src/common/helper/response.helper';
+import { QueryStopLogDto } from '../../application/stoplog/dto/query-stoplog.dto';
 
 @Injectable()
 export class StopLogService {
   constructor(private readonly prisma: PrismaService) {}
 
-  private readonly STEP_CONFIG = {
-    [LogStopStep.ARRIVAL_TIME]: { prev: null, field: 'arrived_at' },
-    [LogStopStep.DOCK_IN_TIME]: { prev: 'ARRIVAL_TIME', field: 'docked_at' },
-    [LogStopStep.COMPLETED_TIME]: { prev: 'DOCK_IN_TIME', field: 'completed_at' },
-    [LogStopStep.DEPARTURE_TIME]: { prev: 'COMPLETED_TIME', field: 'departed_at' },
-  };
+  async findAllByUser(user_id: string, query: QueryStopLogDto) {
+    const { page = 1, limit = 10, search } = query;
+    const skip = (page - 1) * limit;
 
-  async putStopLogDto(dto: PutStopLogDto, user_id: string) {
-    const config = this.STEP_CONFIG[dto.step];
-    const prismaStep = dto.step.toUpperCase() as any;
+    // 1. Verify user exists and get rates
+    const user = await this.prisma.user.findUnique({
+      where: { id: user_id },
+      select: { rate_per_hour: true, free_wait_time: true },
+    });
+    if (!user) throw new NotFoundException('User not found');
 
-    return await this.prisma.$transaction(async (tx) => {
-      // 1. Validate User
-      const user = await tx.user.findUnique({
-        where: { id: user_id },
-        select: { id: true },
-      });
-      if (!user) throw new UnauthorizedException('User not found');
+    // 2. Build where clause
+    const where: any = { user_id };
+    if (search) {
+      where.locations = {
+        some: {
+          OR: [
+            { city: { contains: search, mode: 'insensitive' } },
+            { address: { contains: search, mode: 'insensitive' } },
+          ],
+        },
+      };
+    }
 
-      // 2. Find active log
-      const activeLog = await tx.stopLog.findFirst({
-        where: { user_id, departed_at: null },
+    // 3. Fetch data and count in parallel
+    const [total, stopLogs] = await Promise.all([
+      this.prisma.stopLog.count({ where }),
+      this.prisma.stopLog.findMany({
+        where,
+        skip: Number(skip),
+        take: Number(limit),
         orderBy: { created_at: 'desc' },
-      });
+        include: {
+          locations: { take: 1 },
+        },
+      }),
+    ]);
 
-      // 3. Sequence & State Validation
-      if (config.prev === null) {
-        if (activeLog)
-          throw new UnauthorizedException(
-            'An active stop log is already in progress',
-          );
-      } else {
-        if (!activeLog)
-          throw new UnauthorizedException(
-            'No active stop log found. Start with Arrival.',
-          );
-        if (activeLog.current_step !== config.prev) {
-          throw new UnauthorizedException(
-            `Invalid sequence. Next step should be: ${config.prev.toLowerCase()}`,
-          );
-        }
-      }
+    // 4. Transform and calculate detention
+    const formattedData = stopLogs.map((log) => {
+      const arrived = log.arrived_at ? new Date(log.arrived_at).getTime() : 0;
+      const departed = log.departed_at
+        ? new Date(log.departed_at).getTime()
+        : 0;
 
-      // 4. Update or Create Log
-      const now = new Date();
-      const stoplog =
-        config.prev === null
-          ? await tx.stopLog.create({
-              data: { user_id, arrived_at: now, current_step: prismaStep },
-            })
-          : await tx.stopLog.update({
-              where: { id: activeLog.id },
-              data: { [config.field]: now, current_step: prismaStep },
-            });
+      const totalTimeHours =
+        departed > arrived ? (departed - arrived) / (1000 * 60 * 60) : 0;
 
-      // 5. Save Location
-      if (dto.location) {
-        await tx.location.create({
-          data: {
-            ...dto.location,
-            location_at: prismaStep,
-            stop_log_id: stoplog.id,
-          },
-        });
-      }
+      const payableTime = Math.max(
+        0,
+        totalTimeHours - (user.free_wait_time || 0),
+      );
+      const detentionAmount = payableTime * (user.rate_per_hour || 0);
 
-      return stoplog;
+      return {
+        id: log.id,
+        address: log.locations?.[0]?.address || null,
+        arrived_at: log.arrived_at,
+        docked_at: log.docked_at,
+        completed_at: log.completed_at,
+        departed_at: log.departed_at,
+        detention: detentionAmount.toFixed(2),
+      };
+    });
+
+    return ResponseHelper.success({
+      message: 'User stop logs fetched successfully',
+      data: formattedData,
+      meta_data: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+      },
     });
   }
 
@@ -98,6 +113,3 @@ export class StopLogService {
     return `This action removes a #${id} stoplog`;
   }
 }
-
-
-
