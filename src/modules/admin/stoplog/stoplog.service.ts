@@ -1,11 +1,11 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
-import { CreateSpotlogDto } from './dto/create-spotlog.dto';
-import { UpdateSpotlogDto } from './dto/update-spotlog.dto';
-import { LogStopStep, PutSpotLogDto } from '../../application/spotlog/dto/create-spotlog.dto';
+import { CreateStopLogDto } from './dto/create-stoplog.dto';
+import { UpdateStopLogDto } from './dto/update-stoplog.dto';
+import { LogStopStep, PutStopLogDto } from '../../application/stoplog/dto/create-stoplog.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
 
 @Injectable()
-export class SpotlogService {
+export class StopLogService {
   constructor(private readonly prisma: PrismaService) {}
 
   private readonly STEP_CONFIG = {
@@ -15,7 +15,7 @@ export class SpotlogService {
     [LogStopStep.DEPARTURE_TIME]: { prev: 'COMPLETED_TIME', field: 'departed_at' },
   };
 
-  async putSpotLogDto(dto: PutSpotLogDto, user_id: string) {
+  async putStopLogDto(dto: PutStopLogDto, user_id: string) {
     const config = this.STEP_CONFIG[dto.step];
     const prismaStep = dto.step.toUpperCase() as any;
 
@@ -28,7 +28,7 @@ export class SpotlogService {
       if (!user) throw new UnauthorizedException('User not found');
 
       // 2. Find active log
-      const activeLog = await tx.spotLog.findFirst({
+      const activeLog = await tx.stopLog.findFirst({
         where: { user_id, departed_at: null },
         orderBy: { created_at: 'desc' },
       });
@@ -37,12 +37,12 @@ export class SpotlogService {
       if (config.prev === null) {
         if (activeLog)
           throw new UnauthorizedException(
-            'An active spot log is already in progress',
+            'An active stop log is already in progress',
           );
       } else {
         if (!activeLog)
           throw new UnauthorizedException(
-            'No active spot log found. Start with Arrival.',
+            'No active stop log found. Start with Arrival.',
           );
         if (activeLog.current_step !== config.prev) {
           throw new UnauthorizedException(
@@ -53,12 +53,12 @@ export class SpotlogService {
 
       // 4. Update or Create Log
       const now = new Date();
-      const spotLog =
+      const stoplog =
         config.prev === null
-          ? await tx.spotLog.create({
+          ? await tx.stopLog.create({
               data: { user_id, arrived_at: now, current_step: prismaStep },
             })
-          : await tx.spotLog.update({
+          : await tx.stopLog.update({
               where: { id: activeLog.id },
               data: { [config.field]: now, current_step: prismaStep },
             });
@@ -69,32 +69,35 @@ export class SpotlogService {
           data: {
             ...dto.location,
             location_at: prismaStep,
-            spot_log_id: spotLog.id,
+            stop_log_id: stoplog.id,
           },
         });
       }
 
-      return spotLog;
+      return stoplog;
     });
   }
 
-  create(createSpotlogDto: CreateSpotlogDto) {
-    return 'This action adds a new spotlog';
+  create(createStopLogDto: CreateStopLogDto) {
+    return 'This action adds a new stoplog';
   }
 
   findAll() {
-    return `This action returns all spotlog`;
+    return `This action returns all stoplog`;
   }
 
   findOne(id: number) {
-    return `This action returns a #${id} spotlog`;
+    return `This action returns a #${id} stoplog`;
   }
 
-  update(id: number, updateSpotlogDto: UpdateSpotlogDto) {
-    return `This action updates a #${id} spotlog`;
+  update(id: number, updateStopLogDto: UpdateStopLogDto) {
+    return `This action updates a #${id} stoplog`;
   }
 
   remove(id: number) {
-    return `This action removes a #${id} spotlog`;
+    return `This action removes a #${id} stoplog`;
   }
 }
+
+
+

@@ -57,7 +57,7 @@ export enum LogStopStep {
   DEPARTURE_TIME = 'departure_time',
 }
 
-export class PutSpotLogDto {
+export class PutStopLogDto {
   @ApiPropertyOptional({
     type: LocationDto,
     description: 'Location details (optional for update)',
@@ -75,3 +75,6 @@ export class PutSpotLogDto {
   })
   step: LogStopStep;
 }
+
+
+

@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
 import { NotificationModule } from './notification/notification.module';
 import { ContactModule } from './contact/contact.module';
-import { SpotlogModule } from './spotlog/spotlog.module';
+import { StopLogModule } from './stoplog/stoplog.module';
 
 @Module({
-  imports: [NotificationModule, ContactModule, SpotlogModule],
+  imports: [NotificationModule, ContactModule, StopLogModule],
 })
 export class ApplicationModule {}
+
+
+

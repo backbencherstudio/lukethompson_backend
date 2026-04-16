@@ -33,6 +33,7 @@ model Account {
   session_state       String?
 
   @@unique([provider, provider_account_id])
+  @@index([user_id])
   @@map("accounts")
 }
 
@@ -68,8 +69,10 @@ model User {
   roles                Role[]
   role_users           RoleUser[]
   payment_transactions PaymentTransaction[]
-  spotLogs             SpotLog[]
+  stop_logs            StopLog[]
 
+  @@index([status])
+  @@index([created_at])
   @@map("users")
 }
 
@@ -80,12 +83,14 @@ model Ucode {
   status     Int?     @default(1) @db.SmallInt
 
   user_id String?
-  user    User?   @relation(fields: [user_id], references: [id])
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   token      String?
   email      String?
   expired_at DateTime?
 
+  @@index([user_id])
+  @@index([token])
   @@map("ucodes")
 }
 
@@ -106,6 +111,7 @@ model Role {
   role_users       RoleUser[]
   permissions      Permission[]     @relation("PermissionToRole")
 
+  @@index([user_id])
   @@map("roles")
 }
 
@@ -139,6 +145,8 @@ model PermissionRole {
   role    Role   @relation(fields: [role_id], references: [id], onDelete: Cascade)
 
   @@id([permission_id, role_id])
+  @@index([permission_id])
+  @@index([role_id])
   @@map("permission_roles")
 }
 
@@ -153,6 +161,8 @@ model RoleUser {
   user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@id([role_id, user_id])
+  @@index([role_id])
+  @@index([user_id])
   @@map("role_users")
 }
 
@@ -183,16 +193,20 @@ model Notification {
   status Int? @default(1) @db.SmallInt
 
   sender_id String?
-  sender    User?   @relation("sender", fields: [sender_id], references: [id])
+  sender    User?   @relation("sender", fields: [sender_id], references: [id], onDelete: SetNull)
 
   receiver_id String?
-  receiver    User?   @relation("receiver", fields: [receiver_id], references: [id])
+  receiver    User?   @relation("receiver", fields: [receiver_id], references: [id], onDelete: Cascade)
 
   notification_event_id String?
-  notification_event    NotificationEvent? @relation(fields: [notification_event_id], references: [id])
+  notification_event    NotificationEvent? @relation(fields: [notification_event_id], references: [id], onDelete: SetNull)
 
   entity_id String?
 
+  @@index([sender_id])
+  @@index([receiver_id])
+  @@index([notification_event_id])
+  @@index([created_at])
   @@map("notifications")
 }
 
@@ -203,11 +217,12 @@ model UserPaymentMethod {
   deleted_at DateTime?
 
   user_id String?
-  user    User?   @relation(fields: [user_id], references: [id])
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   payment_method_id String?
   checkout_id       String?
 
+  @@index([user_id])
   @@map("user_payment_methods")
 }
 
@@ -220,7 +235,7 @@ model PaymentTransaction {
   store_id String?
 
   user_id String?
-  user    User?   @relation(fields: [user_id], references: [id])
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: SetNull)
 
   order_id         String?
   type             String?  @default("order")
@@ -234,6 +249,9 @@ model PaymentTransaction {
   paid_amount      Decimal?
   paid_currency    String?
 
+  @@index([user_id])
+  @@index([status])
+  @@index([created_at])
   @@map("payment_transactions")
 }
 
@@ -249,6 +267,7 @@ model Contact {
   phone_number String?
   message      String?
 
+  @@index([created_at])
   @@map("contacts")
 }
 
@@ -266,6 +285,7 @@ model Setting {
 
   user_settings UserSetting[]
 
+  @@index([category])
   @@map("settings")
 }
 
@@ -276,13 +296,15 @@ model UserSetting {
   deleted_at DateTime?
 
   user_id String?
-  user    User?   @relation(fields: [user_id], references: [id])
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   setting_id String?
-  setting    Setting? @relation(fields: [setting_id], references: [id])
+  setting    Setting? @relation(fields: [setting_id], references: [id], onDelete: Cascade)
 
   value String?
 
+  @@index([user_id])
+  @@index([setting_id])
   @@map("user_settings")
 }
 
@@ -293,7 +315,7 @@ enum LogStopStep {
   DEPARTURE_TIME
 }
 
-model SpotLog {
+model StopLog {
   id         String   @id @default(cuid())
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -306,10 +328,12 @@ model SpotLog {
   current_step LogStopStep?
 
   user_id   String?
-  user      User?      @relation(fields: [user_id], references: [id])
+  user      User?      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   locations Location[]
 
-  @@map("spot_logs")
+  @@index([user_id])
+  @@index([created_at])
+  @@map("stop_logs")
 }
 
 model Location {
@@ -327,8 +351,9 @@ model Location {
   lat     Decimal?
   lng     Decimal?
 
-  spot_log_id String?
-  spot_log    SpotLog? @relation(fields: [spot_log_id], references: [id], onDelete: Cascade)
+  stop_log_id String?
+  stop_log    StopLog? @relation(fields: [stop_log_id], references: [id], onDelete: Cascade)
 
+  @@index([stop_log_id])
   @@map("locations")
 }

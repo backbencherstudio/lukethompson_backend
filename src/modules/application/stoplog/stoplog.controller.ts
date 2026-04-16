@@ -9,24 +9,24 @@ import {
   Put,
   UseGuards,
 } from '@nestjs/common';
-import { SpotlogService } from './spotlog.service';
-import { UpdateSpotlogDto } from './dto/update-spotlog.dto';
-import { PutSpotLogDto } from './dto/create-spotlog.dto';
+import { StopLogService } from './stoplog.service';
+import { UpdateStopLogDto } from './dto/update-stoplog.dto';
+import { PutStopLogDto } from './dto/create-stoplog.dto';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guard/role/roles.guard';
 import { GetUser } from 'src/modules/auth/decorators/get-user.decorator';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { QuerySpotLogDto } from './dto/query-spotlog.dto';
+import { QueryHomeDataDto, QueryStopLogDto } from './dto/query-stoplog.dto';
 import { Query } from '@nestjs/common';
 
-@ApiTags('Application Spotlog')
+@ApiTags('Application stoplog')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('spotlog')
-export class SpotlogController {
-  constructor(private readonly spotlogService: SpotlogService) {}
+@Controller('stoplog')
+export class StopLogController {
+  constructor(private readonly StopLogService: StopLogService) {}
 
   @ApiOperation({
-    summary: 'Update or create a spot log step (Arrival, Dock, etc.)',
+    summary: 'Update or create a stop log step (Arrival, Dock, etc.)',
   })
   @ApiResponse({
     status: 200,
@@ -47,22 +47,22 @@ export class SpotlogController {
     },
   })
   @Put()
-  putSpotLog(
-    @Body() putSpotLogDto: PutSpotLogDto,
+  putStopLog(
+    @Body() putStopLogDto: PutStopLogDto,
     @GetUser('id') user_id: string,
   ) {
-    return this.spotlogService.putSpotLogDto(putSpotLogDto, user_id);
+    return this.StopLogService.putStopLogDto(putStopLogDto, user_id);
   }
 
-  @ApiOperation({ summary: 'Get all spot logs for the authenticated user' })
+  @ApiOperation({ summary: 'Get all stop logs for the authenticated user' })
   @ApiResponse({
     status: 200,
-    description: 'List of spot logs fetched successfully',
+    description: 'List of stop logs fetched successfully',
     schema: {
       type: 'object',
       properties: {
         success: { type: 'boolean', example: true },
-        message: { type: 'string', example: 'Spot logs fetched successfully' },
+        message: { type: 'string', example: 'Stop logs fetched successfully' },
         data: {
           type: 'array',
           items: {
@@ -102,22 +102,35 @@ export class SpotlogController {
     },
   })
   @Get()
-  getAllSpotLogs(
-    @Query() query: QuerySpotLogDto,
+  getAllStopLogs(
+    @Query() query: QueryStopLogDto,
     @GetUser('id') user_id: string,
   ) {
-    return this.spotlogService.getAllSpotLogs(query, user_id);
+    return this.StopLogService.getAllStopLogs(query, user_id);
   }
 
-  @ApiOperation({ summary: 'Get a single spot log by ID' })
+  @Get('home-data')
+  getHomeData(
+    @Query() query: QueryHomeDataDto,
+    @GetUser('id') user_id: string,
+  ) {
+    return this.StopLogService.getHomeData(user_id, query);
+  }
+
+  @Get('report')
+  getReport(@GetUser('id') user_id: string) {
+    return this.StopLogService.getReport(user_id);
+  }
+
+  @ApiOperation({ summary: 'Get a single stop log by ID' })
   @ApiResponse({
     status: 200,
-    description: 'Spot log fetched successfully',
+    description: 'Stop log fetched successfully',
     schema: {
       type: 'object',
       properties: {
         success: { type: 'boolean', example: true },
-        message: { type: 'string', example: 'Spot log fetched successfully' },
+        message: { type: 'string', example: 'Stop log fetched successfully' },
         data: {
           oneOf: [
             {
@@ -172,7 +185,7 @@ export class SpotlogController {
     },
   })
   @Get(':id')
-  getOneSpotLog(@Param('id') id: string, @GetUser('id') user_id: string) {
-    return this.spotlogService.getOneSpotLog(id, user_id);
+  getOneStopLog(@Param('id') id: string, @GetUser('id') user_id: string) {
+    return this.StopLogService.getOneStopLog(id, user_id);
   }
 }

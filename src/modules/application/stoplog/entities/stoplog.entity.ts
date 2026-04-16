@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { LogStopStep } from '../dto/create-spotlog.dto';
+import { LogStopStep } from '../dto/create-stoplog.dto';
 
-export class Spotlog {
+export class StopLog {
   @ApiProperty({ example: 'cl0a1b2c3d4e5f6g7h8i9j0k' })
   id: string;
 
@@ -29,3 +29,6 @@ export class Spotlog {
   @ApiProperty({ example: 'user_id_123' })
   user_id: string;
 }
+
+
+

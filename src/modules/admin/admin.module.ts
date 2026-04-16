@@ -3,7 +3,7 @@ import { ContactModule } from './contact/contact.module';
 import { PaymentTransactionModule } from './payment-transaction/payment-transaction.module';
 import { UserModule } from './user/user.module';
 import { NotificationModule } from './notification/notification.module';
-import { SpotlogModule } from './spotlog/spotlog.module';
+import { StopLogModule } from './stoplog/stoplog.module';
 
 @Module({
   imports: [
@@ -11,7 +11,10 @@ import { SpotlogModule } from './spotlog/spotlog.module';
     PaymentTransactionModule,
     UserModule,
     NotificationModule,
-    SpotlogModule,
+    StopLogModule,
   ],
 })
 export class AdminModule {}
+
+
+
