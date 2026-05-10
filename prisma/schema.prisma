@@ -70,6 +70,7 @@ model User {
   role_users           RoleUser[]
   payment_transactions PaymentTransaction[]
   stop_logs            StopLog[]
+  claims               Claim[]
 
   @@index([status])
   @@index([created_at])
@@ -308,11 +309,19 @@ model UserSetting {
   @@map("user_settings")
 }
 
-enum LogStopStep {
-  ARRIVAL_TIME
-  DOCK_IN_TIME
-  COMPLETED_TIME
-  DEPARTURE_TIME
+enum StopLogStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CLAIM_DRAFTED
+  CLAIM_SUBMITTED
+  CANCELLED
+}
+
+enum DetentionRateConfirmed {
+  YES
+  NO
+  NOT_SURE
 }
 
 model StopLog {
@@ -320,28 +329,195 @@ model StopLog {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
+  arrival_location_id String? @unique
+  facility_address_id String? @unique
+
+  user_id    String?
+  shipper_id String?
+
+  // snapshots for evidence of stop logs
+  facility_name        String
+  load_number          String?
+  bol_number           String?
+  shipper_name         String?
+  broker_name          String?
+  broker_email         String?
+  broker_mc_number     String?
+  free_time_minutes    Int     @default(120)
+  detention_rate_pence Int     @default(0)
+
   arrived_at   DateTime
   docked_at    DateTime?
   completed_at DateTime?
   departed_at  DateTime?
 
-  current_step LogStopStep?
+  notice_sent_at               DateTime?
+  notice_method                String? // email, phone_number
+  rate_con_detention_confirmed DetentionRateConfirmed?
 
-  user_id   String?
-  user      User?      @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  locations Location[]
+  status      StopLogStatus @default(DRAFT)
+  attachments Attachment[]
+
+  // relations
+  claim            Claim?
+  user             User?     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  shipper          Shipper?  @relation(fields: [shipper_id], references: [id], onDelete: Cascade)
+  arrival_location Location? @relation("arrival_location", fields: [arrival_location_id], references: [id])
+  facility_address Location? @relation("facility_address", fields: [facility_address_id], references: [id])
 
   @@index([user_id])
   @@index([created_at])
+  @@index([shipper_id])
   @@map("stop_logs")
+}
+
+enum AttachmentType {
+  BOL
+  RATE_CONFIRMATION
+  ELD_SCREENSHOT
+  FACILITY_STAMP_PHOTO
+  PROOF_PACKAGE
+  DEMAND_LETTER
+  BOND_CLAIM_PACKET
+  COURT_FILING_PACKET
+  COMPLETE_CASE_FILE
+  OTHER
+}
+
+model Attachment {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  stop_log_id String?
+  claim_id    String?
+
+  type AttachmentType
+
+  file_url   String
+  file_name  String?
+  mime_type  String?
+  size_bytes Int?
+
+  claim    Claim?   @relation(fields: [claim_id], references: [id], onDelete: Cascade)
+  stop_log StopLog? @relation(fields: [stop_log_id], references: [id], onDelete: Cascade)
+
+  @@index([stop_log_id])
+  @@index([claim_id])
+  @@index([type])
+  @@map("attachments")
+}
+
+model Shipper {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  name            String
+  normalized_name String @unique
+
+  stop_logs StopLog[]
+  claims    Claim[]
+
+  @@map("shippers")
+}
+
+enum ClaimStatus {
+  DRAFT
+  SUBMITTED
+  FOLLOW_UP
+  IN_RECOURSE
+  PAID
+  DENIED
+  UNCOLLECTABLE
+  IN_COLLECTIONS
+}
+
+enum ClaimSendMethod {
+  EMAIL
+  SMS
+  SHARE
+}
+
+enum ClaimEventType {
+  CLAIM_SENT
+  FOLLOW_UP_SENT
+  BROKER_ESCALATION_SENT
+  DEMAND_LETTER_MAILED
+  BOND_CLAIM_FILED
+  CREDIT_REPORT_SUBMITTED
+  FMCSA_COMPLAINT_FILED
+  LOAD_BOARD_REVIEW_POSTED
+  SMALL_CLAIMS_FILED
+  COLLECTIONS_REFERRED
+  ATTORNEY_REFERRED
+  MARKED_PAID
+  MARKED_DENIED
+  MARKED_UNCOLLECTABLE
+}
+
+model Claim {
+  // --- Meta & Timestamps ---
+  id         String   @id @default(uuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // --- Core Info ---
+  status ClaimStatus @default(DRAFT)
+
+  // --- Financials ---
+  claim_amount Int
+  paid_amount  Int?
+
+  // --- Lifecycle Events ---
+  sent_at                 DateTime?
+  paid_at                 DateTime?
+  denied_at               DateTime?
+  recourse_started_at     DateTime?
+  collections_referred_at DateTime?
+
+  // --- Denial Details ---
+  denied_by     String?
+  denial_reason String?
+
+  // --- Communication ---
+  recipient_email String?
+  send_method     String  @default("EMAIL") // EMAIL, SMS, SHARE
+
+  // --- Follow-up Management ---
+  followup_due_at   DateTime?
+  last_follow_up_at DateTime?
+  followup_count    Int       @default(0)
+
+  // --- Proof Package ---
+  proof_package_generated_at DateTime?
+  proof_package_url          String?
+  proof_package_version      Int       @default(1)
+
+  // --- Recourse & Legal ---
+  recourse_level           Int     @default(0)
+  usps_tracking_number     String?
+  fmcsa_complaint_number   String?
+  small_claims_case_number String?
+
+  // --- Foreign Keys ---
+  user_id     String
+  shipper_id  String
+  stop_log_id String @unique
+
+  // --- Relations ---
+  shipper     Shipper      @relation(fields: [shipper_id], references: [id])
+  user        User         @relation(fields: [user_id], references: [id])
+  stop_log    StopLog      @relation(fields: [stop_log_id], references: [id])
+  attachments Attachment[]
+
+  @@map("claims")
 }
 
 model Location {
   id         String   @id @default(cuid())
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
-
-  location_at LogStopStep?
 
   city    String?
   state   String?
@@ -351,9 +527,8 @@ model Location {
   lat     Decimal?
   lng     Decimal?
 
-  stop_log_id String?
-  stop_log    StopLog? @relation(fields: [stop_log_id], references: [id], onDelete: Cascade)
+  arrival_locations  StopLog[] @relation("arrival_location")
+  facility_addresses StopLog[] @relation("facility_address")
 
-  @@index([stop_log_id])
   @@map("locations")
 }
