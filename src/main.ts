@@ -11,7 +11,7 @@ import { join } from 'path';
 import { AppModule } from './app.module';
 import appConfig from './config/app.config';
 import { CustomExceptionFilter } from './common/exception/custom-exception.filter';
-import { SojebStorage } from './common/lib/Disk/SojebStorage';
+import { NajimStorage } from './common/lib/Disk/NajimStorage';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -56,7 +56,7 @@ async function bootstrap() {
   app.useGlobalFilters(new CustomExceptionFilter());
 
   // storage setup
-  SojebStorage.config({
+  NajimStorage.config({
     driver: 's3',
     connection: {
       rootUrl: appConfig().storageUrl.rootUrl,

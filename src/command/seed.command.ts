@@ -8,7 +8,10 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @Command({ name: 'seed', description: 'prisma db seed' })
 export class SeedCommand extends CommandRunner {
-  constructor(private readonly prisma: PrismaService, private readonly userRepository: UserRepository) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly userRepository: UserRepository,
+  ) {
     super();
   }
   async run(passedParam: string[]): Promise<void> {

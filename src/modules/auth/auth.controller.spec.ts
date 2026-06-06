@@ -128,17 +128,24 @@ describe('AuthController', () => {
   });
 
   it('should handle forgot password', async () => {
-    const result = await controller.forgotPassword({ email: 'john@example.com' });
+    const result = await controller.forgotPassword({
+      email: 'john@example.com',
+    });
     expect(result.success).toBe(true);
   });
 
   it('should verify email', async () => {
-    const result = await controller.verifyEmail({ email: 'john@example.com', token: '1234' });
+    const result = await controller.verifyEmail({
+      email: 'john@example.com',
+      token: '1234',
+    });
     expect(result.success).toBe(true);
   });
 
   it('should resend verification email', async () => {
-    const result = await controller.resendVerificationEmail({ email: 'john@example.com' });
+    const result = await controller.resendVerificationEmail({
+      email: 'john@example.com',
+    });
     expect(result.success).toBe(true);
   });
 
@@ -154,7 +161,11 @@ describe('AuthController', () => {
   it('should change password', async () => {
     const result = await controller.changePassword(
       { user: { userId: 1 } } as any,
-      { email: 'john@example.com', old_password: 'oldpass', new_password: 'newpass' },
+      {
+        email: 'john@example.com',
+        old_password: 'oldpass',
+        new_password: 'newpass',
+      },
     );
     expect(result.success).toBe(true);
   });
@@ -176,15 +187,16 @@ describe('AuthController', () => {
   });
 
   it('should generate 2FA secret', async () => {
-    const result = await controller.generate2FASecret({ user: { userId: 1 } } as any);
+    const result = await controller.generate2FASecret({
+      user: { userId: 1 },
+    } as any);
     expect(result.data.qrCode).toBe('base64');
   });
 
   it('should verify 2FA token', async () => {
-    const result = await controller.verify2FA(
-      { user: { userId: 1 } } as any,
-      { token: '123456' },
-    );
+    const result = await controller.verify2FA({ user: { userId: 1 } } as any, {
+      token: '123456',
+    });
     expect(result.success).toBe(true);
   });
 

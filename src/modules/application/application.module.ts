@@ -7,6 +7,3 @@ import { StopLogModule } from './stoplog/stoplog.module';
   imports: [NotificationModule, ContactModule, StopLogModule],
 })
 export class ApplicationModule {}
-
-
-

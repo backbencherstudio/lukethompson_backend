@@ -25,8 +25,18 @@ export class OverviewService {
     });
 
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
 
     const formattedData = months.map((month, index) => ({
@@ -48,7 +58,9 @@ export class OverviewService {
       _count: { _all: true },
     });
 
-    const totalUsers = await this.prisma.user.count({ where: { type: 'user' } });
+    const totalUsers = await this.prisma.user.count({
+      where: { type: 'user' },
+    });
 
     const formattedData = users.map((u) => ({
       plan: u.type === 'user' ? 'Free Plan' : 'Pro Plan',
@@ -69,22 +81,23 @@ export class OverviewService {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfToday = new Date(now.setHours(0, 0, 0, 0));
 
-    const [totalUsers, monthlyRevenue, proSubscribers, stopsToday] = await Promise.all([
-      this.prisma.user.count({ where: { type: 'user' } }),
-      this.prisma.paymentTransaction.aggregate({
-        where: {
-          created_at: { gte: startOfMonth },
-          status: 'succeeded',
-        },
-        _sum: { amount: true },
-      }),
-      this.prisma.user.count({
-        where: { type: { not: 'user' } }, // Assuming non-standard types are 'Pro'
-      }),
-      this.prisma.stopLog.count({
-        where: { created_at: { gte: startOfToday } },
-      }),
-    ]);
+    const [totalUsers, monthlyRevenue, proSubscribers, stopsToday] =
+      await Promise.all([
+        this.prisma.user.count({ where: { type: 'user' } }),
+        this.prisma.paymentTransaction.aggregate({
+          where: {
+            created_at: { gte: startOfMonth },
+            status: 'succeeded',
+          },
+          _sum: { amount: true },
+        }),
+        this.prisma.user.count({
+          where: { type: { not: 'user' } }, // Assuming non-standard types are 'Pro'
+        }),
+        this.prisma.stopLog.count({
+          where: { created_at: { gte: startOfToday } },
+        }),
+      ]);
 
     return ResponseHelper.success({
       message: 'Stats summary fetched successfully',

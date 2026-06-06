@@ -7,6 +7,3 @@ import { StopLogController } from './stoplog.controller';
   providers: [StopLogService],
 })
 export class StopLogModule {}
-
-
-

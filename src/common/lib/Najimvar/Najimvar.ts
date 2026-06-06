@@ -2,14 +2,14 @@
  * Variable parser
  * @example
  *  const text = 'my name is ${name} and I am ${age} years old';
- *  Sojebvar.addVariable({
- *    name: 'sojeb',
+ *  Najimvar.addVariable({
+ *    name: 'najim',
  *    age: 20,
  *  });
- * $text = Sojebvar.parse(text);
- * @author Sojeb Sikder <sojebsikder@gmail.com>
+ * $text = Najimvar.parse(text);
+ * @author Najim
  */
-export class Sojebvar {
+export class Najimvar {
   private static _variables: any[] = [];
 
   /**
@@ -30,7 +30,7 @@ export class Sojebvar {
 
   /**
    * Parse text
-   * ${name} -> sojeb
+   * ${name} -> najim
    * @param text
    */
   static parse(text: string) {

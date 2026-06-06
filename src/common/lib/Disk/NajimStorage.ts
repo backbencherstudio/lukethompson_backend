@@ -3,13 +3,14 @@ import { LocalAdapter } from './drivers/LocalAdapter';
 import { DiskOption, DiskType } from './Option';
 import { S3Adapter } from './drivers/S3Adapter';
 import { IStorage } from './drivers/iStorage';
+import { StringHelper } from '../../helper/string.helper';
 
 /**
- * SojebStorage for handling storage (local storage, aws s3 storage)
- * @class SojebStorage
- * @author Sojeb Sikder <sojebsikder@gmail.com>
+ * NajimStorage for handling storage (local storage, aws s3 storage)
+ * @class NajimStorage
+ * @author Najim
  */
-export class SojebStorage {
+export class NajimStorage {
   private static _config: DiskOption;
 
   /**
@@ -84,6 +85,29 @@ export class SojebStorage {
       return await disk.delete(key);
     }
     return false;
+  }
+
+  /**
+   * Generate a unique file name from the original file name.
+   * @param originalName
+   * @returns
+   */
+  public static generateFilename(originalName: string): string {
+    const lastDotIndex = originalName.lastIndexOf('.');
+    const hasExtension = lastDotIndex > 0;
+    const extension = hasExtension ? originalName.slice(lastDotIndex) : '';
+    const baseName = hasExtension
+      ? originalName.slice(0, lastDotIndex)
+      : originalName;
+
+    const sanitizedBaseName =
+      baseName
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/gi, '-')
+        .replace(/^-+|-+$/g, '') || 'file';
+
+    return `${sanitizedBaseName}-${StringHelper.randomString(12)}${extension.toLowerCase()}`;
   }
 
   /**

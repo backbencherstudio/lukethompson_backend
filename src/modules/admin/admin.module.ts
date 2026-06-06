@@ -19,6 +19,3 @@ import { OverviewModule } from './overview/overview.module';
   ],
 })
 export class AdminModule {}
-
-
-

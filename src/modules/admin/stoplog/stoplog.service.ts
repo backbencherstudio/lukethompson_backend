@@ -31,14 +31,24 @@ export class StopLogService {
     // 2. Build where clause
     const where: any = { user_id };
     if (search) {
-      where.locations = {
-        some: {
-          OR: [
-            { city: { contains: search, mode: 'insensitive' } },
-            { address: { contains: search, mode: 'insensitive' } },
-          ],
+      where.OR = [
+        {
+          arrival_location: {
+            OR: [
+              { city: { contains: search, mode: 'insensitive' } },
+              { address: { contains: search, mode: 'insensitive' } },
+            ],
+          },
         },
-      };
+        {
+          facility_address: {
+            OR: [
+              { city: { contains: search, mode: 'insensitive' } },
+              { address: { contains: search, mode: 'insensitive' } },
+            ],
+          },
+        },
+      ];
     }
 
     // 3. Fetch data and count in parallel
@@ -50,7 +60,8 @@ export class StopLogService {
         take: Number(limit),
         orderBy: { created_at: 'desc' },
         include: {
-          locations: { take: 1 },
+          arrival_location: true,
+          facility_address: true,
         },
       }),
     ]);
@@ -73,7 +84,10 @@ export class StopLogService {
 
       return {
         id: log.id,
-        address: log.locations?.[0]?.address || null,
+        address:
+          log.facility_address?.address ||
+          log.arrival_location?.address ||
+          null,
         arrived_at: log.arrived_at,
         docked_at: log.docked_at,
         completed_at: log.completed_at,

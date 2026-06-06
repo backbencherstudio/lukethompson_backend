@@ -29,6 +29,3 @@ export class StopLog {
   @ApiProperty({ example: 'user_id_123' })
   user_id: string;
 }
-
-
-

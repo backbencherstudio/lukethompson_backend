@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { SojebStorage } from '../../../common/lib/Disk/SojebStorage';
+import { NajimStorage } from '../../../common/lib/Disk/NajimStorage';
 import appConfig from '../../../config/app.config';
 import { UserRepository } from '../../../common/repository/user/user.repository';
 import { Role } from '../../../common/guard/role/role.enum';
@@ -67,13 +67,13 @@ export class NotificationService {
       if (notifications.length > 0) {
         for (const notification of notifications) {
           if (notification.sender && notification.sender.avatar) {
-            notification.sender['avatar_url'] = SojebStorage.url(
+            notification.sender['avatar_url'] = NajimStorage.url(
               appConfig().storageUrl.avatar + notification.sender.avatar,
             );
           }
 
           if (notification.receiver && notification.receiver.avatar) {
-            notification.receiver['avatar_url'] = SojebStorage.url(
+            notification.receiver['avatar_url'] = NajimStorage.url(
               appConfig().storageUrl.avatar + notification.receiver.avatar,
             );
           }

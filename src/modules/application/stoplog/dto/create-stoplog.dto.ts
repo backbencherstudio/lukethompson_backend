@@ -1,11 +1,14 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsEnum,
   IsNumber,
   IsOptional,
   IsString,
+  ValidateIf,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { Express } from 'express';
 
 export class LocationDto {
   @ApiPropertyOptional({ example: 'Dhaka', description: 'City name' })
@@ -59,6 +62,22 @@ export enum LogStopStep {
 
 export class PutStopLogDto {
   @ApiPropertyOptional({
+    example: 'cmabc123shipper',
+    description: 'Existing shipper facility id.',
+  })
+  @IsString()
+  @IsOptional()
+  shipper_id?: string;
+
+  @ApiPropertyOptional({
+    example: 'Acme Warehouse',
+    description: 'Shipper facility name snapshot for the stop log.',
+  })
+  @ValidateIf((o) => o.step === LogStopStep.ARRIVAL_TIME && !o.shipper_id)
+  @IsString()
+  facility_name?: string;
+
+  @ApiPropertyOptional({
     type: LocationDto,
     description: 'Location details (optional for update)',
   })
@@ -73,8 +92,25 @@ export class PutStopLogDto {
     example: LogStopStep.ARRIVAL_TIME,
     description: 'Step to complete',
   })
+  @IsEnum(LogStopStep)
   step: LogStopStep;
+
+  @ApiPropertyOptional({
+    description: 'Attachment URL',
+    type: 'array',
+    items: {
+      type: 'string',
+      format: 'binary',
+    },
+  })
+  @IsOptional()
+  attachments?: Express.Multer.File[];
+
+  @ApiPropertyOptional({
+    example: '123456789',
+    description: 'BOL number',
+  })
+  @IsOptional()
+  @IsString()
+  bol_number?: string;
 }
-
-
-

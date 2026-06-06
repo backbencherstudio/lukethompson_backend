@@ -8,6 +8,8 @@ import {
   Delete,
   Put,
   UseGuards,
+  UseInterceptors,
+  UploadedFiles,
 } from '@nestjs/common';
 import { StopLogService } from './stoplog.service';
 import { UpdateStopLogDto } from './dto/update-stoplog.dto';
@@ -18,6 +20,8 @@ import { GetUser } from 'src/modules/auth/decorators/get-user.decorator';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { QueryHomeDataDto, QueryStopLogDto } from './dto/query-stoplog.dto';
 import { Query } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 
 @ApiTags('Application stoplog')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -34,24 +38,65 @@ export class StopLogController {
     schema: {
       type: 'object',
       properties: {
-        id: { type: 'string', example: 'cl0a1b2c3d4e5f6g7h8i9j0k' },
-        created_at: { type: 'string', format: 'date-time' },
-        updated_at: { type: 'string', format: 'date-time' },
-        arrived_at: { type: 'string', format: 'date-time' },
-        docked_at: { type: 'string', format: 'date-time', nullable: true },
-        completed_at: { type: 'string', format: 'date-time', nullable: true },
-        departed_at: { type: 'string', format: 'date-time', nullable: true },
-        current_step: { type: 'string', example: 'ARRIVAL_TIME' },
-        user_id: { type: 'string', example: 'user_id_123' },
+        success: { type: 'boolean', example: true },
+        message: {
+          type: 'string',
+          example: 'Stop log step recorded successfully',
+        },
+        data: {
+          type: 'object',
+          properties: {
+            id: { type: 'string', example: 'cl0a1b2c3d4e5f6g7h8i9j0k' },
+            shipper_facility_id: {
+              type: 'string',
+              example: 'cl0a1b2c3d4e5f6g7h8i9j1k',
+            },
+            shipper_id: {
+              type: 'string',
+              example: 'cl0a1b2c3d4e5f6g7h8i9j1k',
+            },
+            shipper_name: { type: 'string', example: 'Acme Warehouse' },
+            facility_name: { type: 'string', example: 'Acme Warehouse' },
+            bol_number: {
+              type: 'string',
+              example: 'BOL-12345',
+              nullable: true,
+            },
+            status: { type: 'string', example: 'ACTIVE' },
+            arrived_at: { type: 'string', format: 'date-time' },
+            docked_at: { type: 'string', format: 'date-time', nullable: true },
+            completed_at: {
+              type: 'string',
+              format: 'date-time',
+              nullable: true,
+            },
+            departed_at: {
+              type: 'string',
+              format: 'date-time',
+              nullable: true,
+            },
+            arrival_location: { type: 'object', nullable: true },
+            facility_address: { type: 'object', nullable: true },
+            attachments: { type: 'array', items: { type: 'object' } },
+            current_step: { type: 'string', example: 'arrival_time' },
+          },
+        },
       },
     },
   })
+  @UseInterceptors(
+    FilesInterceptor('attachments', 10, {
+      storage: memoryStorage(),
+    }),
+  )
   @Put()
   putStopLog(
     @Body() putStopLogDto: PutStopLogDto,
+    @UploadedFiles() attachments: Express.Multer.File[],
     @GetUser('id') user_id: string,
   ) {
-    return this.StopLogService.putStopLogDto(putStopLogDto, user_id);
+    putStopLogDto.attachments = attachments;
+    return this.StopLogService.putStopLog(putStopLogDto, user_id);
   }
 
   @ApiOperation({ summary: 'Get all stop logs for the authenticated user' })

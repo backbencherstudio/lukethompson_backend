@@ -1,7 +1,7 @@
 /**
  * StringHelper
  * @class StringHelper
- * @author Sojeb Sikder <sojebsikder@gmail.com>
+ * @author Najim
  */
 export class StringHelper {
   // public static randomString(length: number = 32): string {

@@ -63,14 +63,15 @@ model User {
   receiver_notifications Notification[] @relation("receiver")
   sender_notifications   Notification[] @relation("sender")
 
-  user_payment_methods UserPaymentMethod[]
-  user_settings        UserSetting[]
-  ucodes               Ucode[]
-  roles                Role[]
-  role_users           RoleUser[]
-  payment_transactions PaymentTransaction[]
-  stop_logs            StopLog[]
-  claims               Claim[]
+  user_payment_methods     UserPaymentMethod[]
+  user_settings            UserSetting[]
+  ucodes                   Ucode[]
+  roles                    Role[]
+  role_users               RoleUser[]
+  payment_transactions     PaymentTransaction[]
+  stop_logs                StopLog[]
+  claims                   Claim[]
+  shipper_facility_ratings ShipperFacilityRating[]
 
   @@index([status])
   @@index([created_at])
@@ -332,14 +333,14 @@ model StopLog {
   arrival_location_id String? @unique
   facility_address_id String? @unique
 
-  user_id    String?
-  shipper_id String?
+  user_id             String?
+  shipper_facility_id String?
 
   // snapshots for evidence of stop logs
   facility_name        String
+  shipper_name         String?
   load_number          String?
   bol_number           String?
-  shipper_name         String?
   broker_name          String?
   broker_email         String?
   broker_mc_number     String?
@@ -360,14 +361,15 @@ model StopLog {
 
   // relations
   claim            Claim?
-  user             User?     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  shipper          Shipper?  @relation(fields: [shipper_id], references: [id], onDelete: Cascade)
-  arrival_location Location? @relation("arrival_location", fields: [arrival_location_id], references: [id])
-  facility_address Location? @relation("facility_address", fields: [facility_address_id], references: [id])
+  rating           ShipperFacilityRating?
+  user             User?                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  shipper_facility ShipperFacility?       @relation(fields: [shipper_facility_id], references: [id], onDelete: Cascade)
+  arrival_location Location?              @relation("arrival_location", fields: [arrival_location_id], references: [id])
+  facility_address Location?              @relation("facility_address", fields: [facility_address_id], references: [id])
 
   @@index([user_id])
   @@index([created_at])
-  @@index([shipper_id])
+  @@index([shipper_facility_id])
   @@map("stop_logs")
 }
 
@@ -408,18 +410,42 @@ model Attachment {
   @@map("attachments")
 }
 
-model Shipper {
+model ShipperFacility {
   id         String   @id @default(cuid())
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
   name            String
-  normalized_name String @unique
+  normalized_name String  @unique
+  location_id     String?
 
   stop_logs StopLog[]
   claims    Claim[]
+  ratings   ShipperFacilityRating[]
+  location  Location?               @relation(fields: [location_id], references: [id], onDelete: SetNull)
 
-  @@map("shippers")
+  @@map("shipper_facilities")
+}
+
+model ShipperFacilityRating {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  rating Decimal @db.Decimal(5, 2) // expected range: 0.00-100.00
+  review String?
+
+  user_id             String
+  shipper_facility_id String
+  stop_log_id         String @unique
+
+  user             User            @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  shipper_facility ShipperFacility @relation(fields: [shipper_facility_id], references: [id], onDelete: Cascade)
+  stop_log         StopLog         @relation(fields: [stop_log_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([shipper_facility_id])
+  @@map("shipper_facility_ratings")
 }
 
 enum ClaimStatus {
@@ -458,7 +484,7 @@ enum ClaimEventType {
 
 model Claim {
   // --- Meta & Timestamps ---
-  id         String   @id @default(uuid())
+  id         String   @id @default(cuid())
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
@@ -501,16 +527,17 @@ model Claim {
   small_claims_case_number String?
 
   // --- Foreign Keys ---
-  user_id     String
-  shipper_id  String
-  stop_log_id String @unique
+  user_id             String
+  shipper_facility_id String
+  stop_log_id         String @unique
 
   // --- Relations ---
-  shipper     Shipper      @relation(fields: [shipper_id], references: [id])
-  user        User         @relation(fields: [user_id], references: [id])
-  stop_log    StopLog      @relation(fields: [stop_log_id], references: [id])
-  attachments Attachment[]
+  shipper_facility ShipperFacility @relation(fields: [shipper_facility_id], references: [id])
+  user             User            @relation(fields: [user_id], references: [id])
+  stop_log         StopLog         @relation(fields: [stop_log_id], references: [id])
+  attachments      Attachment[]
 
+  @@index([shipper_facility_id])
   @@map("claims")
 }
 
@@ -527,8 +554,9 @@ model Location {
   lat     Decimal?
   lng     Decimal?
 
-  arrival_locations  StopLog[] @relation("arrival_location")
-  facility_addresses StopLog[] @relation("facility_address")
+  arrival_locations  StopLog[]         @relation("arrival_location")
+  facility_addresses StopLog[]         @relation("facility_address")
+  shipperFacilities  ShipperFacility[]
 
   @@map("locations")
 }

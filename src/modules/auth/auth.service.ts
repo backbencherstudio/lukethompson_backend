@@ -16,10 +16,9 @@ import { UserRepository } from '../../common/repository/user/user.repository';
 import { UcodeRepository } from '../../common/repository/ucode/ucode.repository';
 import { MailService } from '../../mail/mail.service';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { SojebStorage } from '../../common/lib/Disk/SojebStorage';
+import { NajimStorage } from '../../common/lib/Disk/NajimStorage';
 import { DateHelper } from '../../common/helper/date.helper';
 import { StripePayment } from '../../common/lib/Payment/stripe/StripePayment';
-import { StringHelper } from '../../common/helper/string.helper';
 import {
   ChangePasswordDto,
   ResetPasswordDto,
@@ -58,7 +57,7 @@ export class AuthService {
     }
 
     if (user.avatar) {
-      user['avatar_url'] = SojebStorage.url(
+      user['avatar_url'] = NajimStorage.url(
         appConfig().storageUrl.avatar + user.avatar,
       );
     }
@@ -95,14 +94,14 @@ export class AuthService {
         select: { avatar: true },
       });
       if (oldImage.avatar) {
-        await SojebStorage.delete(
+        await NajimStorage.delete(
           appConfig().storageUrl.avatar + oldImage.avatar,
         );
       }
 
       // upload file
-      const fileName = `${StringHelper.randomString()}${avatar.originalname}`;
-      await SojebStorage.put(
+      const fileName = NajimStorage.generateFilename(avatar.originalname);
+      await NajimStorage.put(
         appConfig().storageUrl.avatar + fileName,
         avatar.buffer,
       );

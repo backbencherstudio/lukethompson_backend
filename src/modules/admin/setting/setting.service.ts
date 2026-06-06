@@ -17,7 +17,9 @@ export class SettingService {
       setting = await this.prisma.setting.create({
         data: {
           key,
-          label: key.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
+          label: key
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, (l) => l.toUpperCase()),
           category: 'notification',
           default_value: 'true',
         },
@@ -54,7 +56,10 @@ export class SettingService {
   }
 
   async toggleSubscriptionNotification(user_id: string) {
-    const status = await this.toggleSetting(user_id, 'subscription_notification');
+    const status = await this.toggleSetting(
+      user_id,
+      'subscription_notification',
+    );
     return ResponseHelper.success({
       message: `Subscription notification turned ${status ? 'ON' : 'OFF'}`,
       data: { status },
@@ -82,7 +87,9 @@ export class SettingService {
     const formatted = settings.map((s) => ({
       key: s.key,
       label: s.label,
-      value: s.user_settings[0]?.value === 'true' || (s.user_settings.length === 0 && s.default_value === 'true'),
+      value:
+        s.user_settings[0]?.value === 'true' ||
+        (s.user_settings.length === 0 && s.default_value === 'true'),
     }));
 
     return ResponseHelper.success({
