@@ -71,6 +71,8 @@ model User {
   payment_transactions     PaymentTransaction[]
   stop_logs                StopLog[]
   claims                   Claim[]
+  subscriptions            UserSubscription[]
+  feature_usages           FeatureUsage[]
   shipper_facility_ratings ShipperFacilityRating[]
 
   @@index([status])
@@ -255,6 +257,154 @@ model PaymentTransaction {
   @@index([status])
   @@index([created_at])
   @@map("payment_transactions")
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+}
+
+enum PlanStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum FeatureValueType {
+  BOOLEAN
+  LIMIT
+  METERED
+}
+
+enum UsageResetPeriod {
+  NEVER
+  DAILY
+  MONTHLY
+  YEARLY
+}
+
+model SubscriptionPlan {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  name        String
+  slug        String          @unique
+  description String?
+  price       Decimal         @db.Decimal(10, 2)
+  currency    String          @default("USD")
+  interval    BillingInterval
+  status      PlanStatus      @default(ACTIVE)
+  sort_order  Int             @default(0)
+
+  apple_product_id  String?
+  google_product_id String?
+
+  features      SubscriptionPlanFeature[]
+  subscriptions UserSubscription[]
+
+  @@index([status])
+  @@index([sort_order])
+  @@map("subscription_plans")
+}
+
+model SubscriptionFeature {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  key          String           @unique
+  name         String
+  description  String?
+  type         FeatureValueType @default(BOOLEAN)
+  unit         String?
+  reset_period UsageResetPeriod @default(NEVER)
+  is_active    Boolean          @default(true)
+  sort_order   Int              @default(0)
+
+  plans  SubscriptionPlanFeature[]
+  usages FeatureUsage[]
+
+  @@index([is_active])
+  @@index([sort_order])
+  @@map("subscription_features")
+}
+
+model SubscriptionPlanFeature {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  plan_id    String
+  feature_id String
+
+  enabled     Boolean @default(true)
+  limit_value Int?
+
+  plan    SubscriptionPlan    @relation(fields: [plan_id], references: [id], onDelete: Cascade)
+  feature SubscriptionFeature @relation(fields: [feature_id], references: [id], onDelete: Cascade)
+
+  @@unique([plan_id, feature_id])
+  @@index([plan_id])
+  @@index([feature_id])
+  @@map("subscription_plan_features")
+}
+
+model UserSubscription {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user_id String
+  plan_id String
+
+  status      SubscriptionStatus @default(ACTIVE)
+  started_at  DateTime           @default(now())
+  expires_at  DateTime?
+  canceled_at DateTime?
+
+  purchase_provider String?
+  purchase_id       String?
+
+  user  User             @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  plan  SubscriptionPlan @relation(fields: [plan_id], references: [id])
+  usage FeatureUsage[]
+
+  @@index([user_id])
+  @@index([plan_id])
+  @@index([status])
+  @@index([purchase_provider, purchase_id])
+  @@map("user_subscriptions")
+}
+
+model FeatureUsage {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+
+  user_id         String
+  feature_id      String
+  subscription_id String?
+
+  quantity     Int      @default(1)
+  period_start DateTime
+  period_end   DateTime
+
+  user         User                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  feature      SubscriptionFeature @relation(fields: [feature_id], references: [id], onDelete: Cascade)
+  subscription UserSubscription?   @relation(fields: [subscription_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id, feature_id])
+  @@index([subscription_id])
+  @@index([period_start, period_end])
+  @@map("feature_usages")
 }
 
 model Contact {

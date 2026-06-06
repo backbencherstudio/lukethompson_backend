@@ -29,6 +29,7 @@ export class SeedCommand extends CommandRunner {
         await this.permissionSeed();
         await this.userSeed();
         await this.permissionRoleSeed();
+        await this.subscriptionFeatureSeed();
       });
 
       console.log('Seeding done.');
@@ -251,5 +252,71 @@ export class SeedCommand extends CommandRunner {
         },
       ],
     });
+  }
+
+  async subscriptionFeatureSeed() {
+    const features = [
+      {
+        key: 'stop_logs',
+        name: 'Stop Logs',
+        description: 'Create and manage stop logs.',
+        type: 'LIMIT',
+        unit: 'logs',
+        reset_period: 'MONTHLY',
+        sort_order: 10,
+      },
+      {
+        key: 'claims',
+        name: 'Claims',
+        description: 'Create detention claim cases.',
+        type: 'LIMIT',
+        unit: 'claims',
+        reset_period: 'MONTHLY',
+        sort_order: 20,
+      },
+      {
+        key: 'weekly_reports',
+        name: 'Weekly Reports',
+        description: 'View weekly detention reports.',
+        type: 'BOOLEAN',
+        reset_period: 'NEVER',
+        sort_order: 30,
+      },
+      {
+        key: 'proof_package',
+        name: 'Proof Package',
+        description: 'Generate proof packages for claims.',
+        type: 'BOOLEAN',
+        reset_period: 'NEVER',
+        sort_order: 40,
+      },
+      {
+        key: 'storage_mb',
+        name: 'Storage',
+        description: 'Monthly storage allowance for uploaded evidence.',
+        type: 'LIMIT',
+        unit: 'MB',
+        reset_period: 'MONTHLY',
+        sort_order: 50,
+      },
+      {
+        key: 'priority_support',
+        name: 'Priority Support',
+        description: 'Priority support access.',
+        type: 'BOOLEAN',
+        reset_period: 'NEVER',
+        sort_order: 60,
+      },
+    ] as const;
+
+    for (const feature of features) {
+      await this.prisma.subscriptionFeature.upsert({
+        where: {
+          key: feature.key,
+        },
+        update: feature,
+        create: feature,
+      });
+    }
   }
 }
