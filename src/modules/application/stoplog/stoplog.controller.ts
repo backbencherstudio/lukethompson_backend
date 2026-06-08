@@ -18,7 +18,11 @@ import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guard/role/roles.guard';
 import { GetUser } from 'src/modules/auth/decorators/get-user.decorator';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { QueryHomeDataDto, QueryStopLogDto } from './dto/query-stoplog.dto';
+import {
+  QueryHomeDataDto,
+  QueryReportDto,
+  QueryStopLogDto,
+} from './dto/query-stoplog.dto';
 import { Query } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -163,8 +167,8 @@ export class StopLogController {
   }
 
   @Get('report')
-  getReport(@GetUser('id') user_id: string) {
-    return this.StopLogService.getReport(user_id);
+  getReport(@Query() query: QueryReportDto, @GetUser('id') user_id: string) {
+    return this.StopLogService.getReport(user_id, query);
   }
 
   @ApiOperation({ summary: 'Get a single stop log by ID' })

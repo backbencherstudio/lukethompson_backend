@@ -9,11 +9,13 @@ export enum StopLogStatus {
 }
 
 export class QueryStopLogDto {
-  @ApiPropertyOptional({ example: 1, description: 'Page number' })
+  @ApiPropertyOptional({
+    example: 'cl0b7e6d5f4g3h2i1j0k9l8m',
+    description: 'Cursor for pagination',
+  })
   @IsOptional()
-  @Type(() => Number)
-  @IsNumber()
-  page?: number = 1;
+  @IsString()
+  cursor?: string;
 
   @ApiPropertyOptional({ example: 10, description: 'Items per page' })
   @IsOptional()
@@ -55,4 +57,34 @@ export class QueryHomeDataDto {
   @IsOptional()
   @IsEnum(Period)
   period?: Period = Period.TODAY;
+}
+
+export enum ReportPeriod {
+  MONTHLY = 'MONTHLY',
+  YEARLY = 'YEARLY',
+}
+
+export enum ReportTab {
+  WEEKLY_SUMMARY = 'WEEKLY_SUMMARY',
+  TAX_REPORT = 'TAX_REPORT',
+}
+
+export class QueryReportDto {
+  @ApiPropertyOptional({
+    enum: ReportTab,
+    default: ReportTab.WEEKLY_SUMMARY,
+    description: 'Report tab to fetch (WEEKLY_SUMMARY or TAX_REPORT)',
+  })
+  @IsOptional()
+  @IsEnum(ReportTab)
+  tab?: ReportTab = ReportTab.WEEKLY_SUMMARY;
+
+  @ApiPropertyOptional({
+    enum: ReportPeriod,
+    default: ReportPeriod.MONTHLY,
+    description: 'Tax report chart period (MONTHLY or YEARLY)',
+  })
+  @IsOptional()
+  @IsEnum(ReportPeriod)
+  period?: ReportPeriod = ReportPeriod.MONTHLY;
 }

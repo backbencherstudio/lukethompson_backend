@@ -9,10 +9,14 @@ import { ResponseHelper } from 'src/common/helper/response.helper';
 import {
   Period,
   QueryHomeDataDto,
+  QueryReportDto,
   QueryStopLogDto,
+  ReportPeriod,
+  ReportTab,
   StopLogStatus as QueryStopLogStatus,
 } from './dto/query-stoplog.dto';
 import {
+  ClaimStatus,
   Prisma,
   StopLogStatus as PrismaStopLogStatus,
 } from 'prisma/generated/client';
@@ -60,6 +64,42 @@ export class StopLogService {
       stopLog.arrival_location?.address ||
       null
     );
+  }
+
+  private getHomeDataPeriodStart(period: Period, date: Date) {
+    const start = new Date(date);
+
+    switch (period) {
+      case Period.TODAY:
+        start.setHours(0, 0, 0, 0);
+        return start;
+      case Period.WEEK:
+        start.setDate(start.getDate() - 7);
+        return start;
+      case Period.MONTH:
+        start.setMonth(start.getMonth() - 1);
+        return start;
+      case Period.YEAR:
+        start.setFullYear(start.getFullYear() - 1);
+        return start;
+    }
+  }
+
+  private getWeekStart(date: Date) {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const day = start.getDay();
+    const daysFromMonday = day === 0 ? 6 : day - 1;
+    start.setDate(start.getDate() - daysFromMonday);
+    return start;
+  }
+
+  private formatHoursMinutes(hours: number) {
+    const totalMinutes = Math.round(hours * 60);
+    const formattedHours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    return `${formattedHours}h ${minutes}m`;
   }
 
   private async uploadStopLogAttachments(
@@ -398,12 +438,11 @@ export class StopLogService {
 
   async getAllStopLogs(query: QueryStopLogDto, user_id: string) {
     const {
-      page = 1,
+      cursor,
       limit = 10,
       search,
       status = QueryStopLogStatus.ALL,
     } = query;
-    const skip = (page - 1) * limit;
 
     const where: any = {
       user_id,
@@ -438,78 +477,67 @@ export class StopLogService {
       ];
     }
 
-    const [total, data] = await Promise.all([
-      this.prisma.stopLog.count({ where }),
-      this.prisma.stopLog.findMany({
-        where,
-        skip: Number(skip),
-        take: Number(limit),
-        orderBy: { created_at: 'desc' },
-        include: {
-          user: {
-            select: {
-              rate_per_hour: true,
-              free_wait_time: true,
-            },
+    const data = await this.prisma.stopLog.findMany({
+      where,
+      take: Number(limit) + 1,
+      cursor: cursor
+        ? {
+            id: cursor,
+          }
+        : undefined,
+      orderBy: { created_at: 'desc' },
+      select: {
+        id: true,
+        created_at: true,
+        status: true,
+        facility_name: true,
+        shipper_facility_id: true,
+        arrived_at: true,
+        departed_at: true,
+        user: {
+          select: {
+            rate_per_hour: true,
+            free_wait_time: true,
           },
-          arrival_location: true,
-          facility_address: true,
         },
-      }),
-    ]);
-
-    const getHHMM = (date: Date) =>
-      new Date(date).toLocaleTimeString('en-GB', {
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-
-    const formattedData = data.map((item: any) => {
-      const arrived = item.arrived_at ? new Date(item.arrived_at).getTime() : 0;
-      const departed = item.departed_at
-        ? new Date(item.departed_at).getTime()
-        : 0;
-
-      const totalTime =
-        departed > arrived
-          ? ((departed - arrived) / (1000 * 60 * 60)).toFixed(2)
-          : null;
-
-      const totalTimeNum = totalTime ? parseFloat(totalTime) : 0;
-      const payableTime = Math.max(
-        0,
-        totalTimeNum - (item.user?.free_wait_time || 0),
-      );
-
-      const payableTimeFormatted = payableTime.toFixed(2);
-      const totalAmount = payableTime * (item.user?.rate_per_hour || 0);
-
-      const address = this.getStopLogAddress(item);
-
-      const status =
-        item.status === PrismaStopLogStatus.COMPLETED
-          ? QueryStopLogStatus.COMPLETED
-          : QueryStopLogStatus.PROGRESS;
-
-      return {
-        id: item.id,
-        arrived_at: item.arrived_at ? getHHMM(item.arrived_at) : null,
-        departed_at: item.departed_at ? getHHMM(item.departed_at) : null,
-        total_time: totalTime,
-        billable_time: payableTimeFormatted,
-        detention: totalAmount.toFixed(2),
-        lost: totalAmount.toFixed(2),
-        address,
-        status,
-      };
+        arrival_location: true,
+        facility_address: true,
+      },
     });
+
+    const nextCursor =
+      data.length > Number(limit) ? data[Number(limit)].id : null;
+    if (nextCursor) {
+      data.pop();
+    }
 
     return ResponseHelper.success({
       message: 'Stop logs fetched successfully',
-      data: formattedData,
+      data: data.map((item) => {
+        const arrived = item.arrived_at?.getTime() ?? 0;
+        const departed = item.departed_at?.getTime() ?? 0;
+        const totalHours =
+          departed > arrived ? (departed - arrived) / (1000 * 60 * 60) : 0;
+        const billableHours = Math.max(
+          0,
+          totalHours - (item.user?.free_wait_time || 0),
+        );
+        const amount = billableHours * (item.user?.rate_per_hour || 0);
+
+        return {
+          id: item.id,
+          facility_name: item.facility_name,
+          shipper_facility_id: item.shipper_facility_id,
+          date: item.created_at,
+          amount: amount.toFixed(2),
+          status:
+            item.status === PrismaStopLogStatus.COMPLETED //TODO
+              ? QueryStopLogStatus.COMPLETED
+              : QueryStopLogStatus.PROGRESS,
+        };
+      }),
       meta_data: {
-        total,
-        page: Number(page),
+        next_cursor: nextCursor,
         limit: Number(limit),
         search,
         filters: {
@@ -592,154 +620,411 @@ export class StopLogService {
   async getHomeData(user_id: string, query: QueryHomeDataDto) {
     const { period = Period.TODAY } = query;
 
+    const now = new Date();
+    const periodStart = this.getHomeDataPeriodStart(period, now);
     const where: Prisma.StopLogWhereInput = {
       user_id,
       departed_at: { not: null }, // Only calculate for completed stops
+      created_at: { gte: periodStart },
     };
 
-    const now = new Date();
-    switch (period) {
-      case Period.TODAY:
-        where.created_at = {
-          gte: new Date(now.setHours(0, 0, 0, 0)),
-        };
-        break;
-      case Period.WEEK:
-        where.created_at = {
-          gte: new Date(now.setDate(now.getDate() - 7)),
-        };
-        break;
-      case Period.MONTH:
-        where.created_at = {
-          gte: new Date(now.setMonth(now.getMonth() - 1)),
-        };
-        break;
-      case Period.YEAR:
-        where.created_at = {
-          gte: new Date(now.setFullYear(now.getFullYear() - 1)),
-        };
-        break;
-    }
+    const weekStart = this.getWeekStart(now);
+    const nextWeekStart = new Date(weekStart);
+    nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+    const lastWeekStart = new Date(weekStart);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
 
-    const stopLogs = await this.prisma.stopLog.findMany({
-      where,
-      include: {
-        user: {
-          select: {
-            rate_per_hour: true,
-            free_wait_time: true,
+    const [user, stopLogs, weeklyStopLogs, lastWeekClaims] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: user_id },
+        select: {
+          rate_per_hour: true,
+          free_wait_time: true,
+        },
+      }),
+      this.prisma.stopLog.findMany({
+        where,
+        select: {
+          arrived_at: true,
+          departed_at: true,
+          claim: {
+            select: {
+              status: true,
+              claim_amount: true,
+              paid_amount: true,
+            },
           },
         },
-        arrival_location: true,
-        facility_address: true,
-      },
-    });
+      }),
+      this.prisma.stopLog.findMany({
+        where: {
+          user_id,
+          departed_at: { not: null },
+          created_at: {
+            gte: weekStart,
+            lt: nextWeekStart,
+          },
+        },
+        select: {
+          created_at: true,
+        },
+      }),
+      this.prisma.claim.findMany({
+        where: {
+          user_id,
+          created_at: {
+            gte: lastWeekStart,
+            lt: weekStart,
+          },
+        },
+        select: {
+          claim_amount: true,
+          paid_amount: true,
+          status: true,
+        },
+      }),
+    ]);
 
     let total_detention = 0;
     let total_hours = 0;
-    let worstStopLogData = null;
-    let maxAmount = -1;
+    let claimedStops = 0;
+    let totalClaimedAmount = 0;
+    let totalCollectedAmount = 0;
 
     stopLogs.forEach((stopLog) => {
       const arrived = stopLog.arrived_at.getTime();
-      const departed = stopLog.departed_at.getTime();
+      const departed = stopLog.departed_at?.getTime() || 0;
 
       const hoursDiff = Math.max(0, (departed - arrived) / (1000 * 60 * 60));
-      const payableTime = Math.max(
-        0,
-        hoursDiff - (stopLog.user?.free_wait_time || 0),
-      );
-      const amount = payableTime * (stopLog.user?.rate_per_hour || 0);
+      const payableTime = Math.max(0, hoursDiff - (user?.free_wait_time || 0));
+      const amount = payableTime * (user?.rate_per_hour || 0);
 
       total_detention += amount;
       total_hours += payableTime;
 
-      if (amount > maxAmount) {
-        maxAmount = amount;
-        worstStopLogData = {
-          address: this.getStopLogAddress(stopLog) || 'Unknown Address',
-          total_lost: amount.toFixed(2),
-        };
+      if (stopLog.claim && stopLog.claim.status !== ClaimStatus.DRAFT) {
+        claimedStops += 1;
+        totalClaimedAmount += stopLog.claim.claim_amount;
+        totalCollectedAmount += stopLog.claim.paid_amount || 0;
       }
     });
+
+    const weeklyActivity = [
+      { day: 'Mon', total_stops: 0 },
+      { day: 'Tue', total_stops: 0 },
+      { day: 'Wed', total_stops: 0 },
+      { day: 'Thu', total_stops: 0 },
+      { day: 'Fri', total_stops: 0 },
+      { day: 'Sat', total_stops: 0 },
+      { day: 'Sun', total_stops: 0 },
+    ];
+
+    weeklyStopLogs.forEach((stopLog) => {
+      const day = stopLog.created_at.getDay();
+      const index = day === 0 ? 6 : day - 1;
+      weeklyActivity[index].total_stops += 1;
+    });
+
+    const collectionRate =
+      totalClaimedAmount > 0
+        ? (totalCollectedAmount / totalClaimedAmount) * 100
+        : 0;
+
+    const lastWeekTotals = lastWeekClaims.reduce(
+      (totals, claim) => {
+        if (claim.status === ClaimStatus.DRAFT) {
+          return totals;
+        }
+
+        totals.claimed += claim.claim_amount;
+        totals.collected += claim.paid_amount || 0;
+        return totals;
+      },
+      { claimed: 0, collected: 0 },
+    );
+    const lastWeekCollectionRate =
+      lastWeekTotals.claimed > 0
+        ? (lastWeekTotals.collected / lastWeekTotals.claimed) * 100
+        : 0;
+    const collectionRateChange = collectionRate - lastWeekCollectionRate;
+    const avgHoursPerStop =
+      stopLogs.length > 0 ? total_hours / stopLogs.length : 0;
 
     return ResponseHelper.success({
       message: 'Home data fetched successfully',
       data: {
         total_detention: total_detention.toFixed(2),
         total_lost: total_detention.toFixed(2),
+        total_stops: stopLogs.length,
+        claimed_stops: claimedStops,
         total_hours: total_hours.toFixed(2),
-        rate_per_hour: stopLogs[0]?.user?.rate_per_hour || 0,
-        worst_stoplog: worstStopLogData || {
-          address: null,
-          total_lost: '0.00',
+        avg_hours_per_stop: avgHoursPerStop.toFixed(2),
+        avg_hours_per_stop_text: this.formatHoursMinutes(avgHoursPerStop),
+        collection_rate: collectionRate.toFixed(2),
+        collection_rate_change: collectionRateChange.toFixed(2),
+        weekly_activity: {
+          total_stops: weeklyStopLogs.length,
+          data: weeklyActivity,
         },
       },
     });
   }
 
-  async getReport(user_id: string) {
+  async getReport(user_id: string, query: QueryReportDto) {
+    const { tab = ReportTab.WEEKLY_SUMMARY, period = ReportPeriod.MONTHLY } =
+      query;
     const now = new Date();
-    const lastWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-    const stopLogs = await this.prisma.stopLog.findMany({
-      where: {
-        user_id,
-        departed_at: { not: null },
-        created_at: { gte: lastWeek },
-      },
-      include: {
-        user: {
+    if (tab === ReportTab.WEEKLY_SUMMARY) {
+      const weekStart = this.getWeekStart(now);
+      const nextWeekStart = new Date(weekStart);
+      nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+
+      const [user, weeklyStopLogs] = await Promise.all([
+        this.prisma.user.findUnique({
+          where: { id: user_id },
           select: {
             rate_per_hour: true,
             free_wait_time: true,
           },
+        }),
+        this.prisma.stopLog.findMany({
+          where: {
+            user_id,
+            departed_at: { not: null },
+            created_at: {
+              gte: weekStart,
+              lt: nextWeekStart,
+            },
+          },
+          select: {
+            facility_name: true,
+            arrived_at: true,
+            departed_at: true,
+            claim: {
+              select: {
+                status: true,
+                paid_amount: true,
+              },
+            },
+          },
+        }),
+      ]);
+
+      let totalWaitingHours = 0;
+      let weeklyDetentionAmount = 0;
+      let weeklyCollectedAmount = 0;
+      let topWorstStop = null;
+      let maxWaitingHours = -1;
+
+      weeklyStopLogs.forEach((stopLog) => {
+        const arrived = stopLog.arrived_at.getTime();
+        const departed = stopLog.departed_at?.getTime() || 0;
+        const hoursDiff = Math.max(0, (departed - arrived) / (1000 * 60 * 60));
+        const payableTime = Math.max(
+          0,
+          hoursDiff - (user?.free_wait_time || 0),
+        );
+        const amount = payableTime * (user?.rate_per_hour || 0);
+
+        totalWaitingHours += payableTime;
+        weeklyDetentionAmount += amount;
+
+        if (stopLog.claim && stopLog.claim.status !== ClaimStatus.DRAFT) {
+          weeklyCollectedAmount += stopLog.claim.paid_amount || 0;
+        }
+
+        if (payableTime > maxWaitingHours) {
+          maxWaitingHours = payableTime;
+          topWorstStop = {
+            facility_name: stopLog.facility_name || 'Unknown Facility',
+            waiting_hours: payableTime.toFixed(2),
+            waiting_time_text: this.formatHoursMinutes(payableTime),
+          };
+        }
+      });
+
+      const weeklyRevenueLost = Math.max(
+        0,
+        weeklyDetentionAmount - weeklyCollectedAmount,
+      );
+
+      return ResponseHelper.success({
+        message: 'Weekly summary fetched successfully',
+        data: {
+          tab,
+          total_waiting_hours: totalWaitingHours.toFixed(2),
+          total_waiting_text: this.formatHoursMinutes(totalWaitingHours),
+          detention_captured: weeklyCollectedAmount.toFixed(2),
+          revenue_lost: weeklyRevenueLost.toFixed(2),
+          top_worst_stop: topWorstStop || {
+            facility_name: null,
+            waiting_hours: '0.00',
+            waiting_time_text: '0h 0m',
+          },
         },
-        arrival_location: true,
-        facility_address: true,
+      });
+    }
+
+    const yearStart = new Date(now.getFullYear(), 0, 1);
+    const nextYearStart = new Date(now.getFullYear() + 1, 0, 1);
+    const chartStart =
+      period === ReportPeriod.YEARLY
+        ? new Date(now.getFullYear() - 6, 0, 1)
+        : yearStart;
+    const reportStart = period === ReportPeriod.YEARLY ? chartStart : yearStart;
+
+    const taxClaims = await this.prisma.claim.findMany({
+      where: {
+        user_id,
+        status: { not: ClaimStatus.DRAFT },
+        OR: [
+          {
+            created_at: {
+              gte: reportStart,
+              lt: nextYearStart,
+            },
+          },
+          {
+            paid_at: {
+              gte: reportStart,
+              lt: nextYearStart,
+            },
+          },
+        ],
+      },
+      select: {
+        claim_amount: true,
+        paid_amount: true,
+        created_at: true,
+        sent_at: true,
+        paid_at: true,
       },
     });
 
-    let total_detention = 0;
-    let total_timeloast = 0;
-    let worstStopLogData = null;
-    let maxAmount = -1;
+    let totalClaimed = 0;
+    let totalCollected = 0;
+    let paidClaimDays = 0;
+    let paidClaimCount = 0;
 
-    stopLogs.forEach((stopLog) => {
-      const arrived = stopLog.arrived_at.getTime();
-      const departed = stopLog.departed_at.getTime();
+    taxClaims.forEach((claim) => {
+      if (claim.created_at >= reportStart && claim.created_at < nextYearStart) {
+        totalClaimed += claim.claim_amount;
+      }
 
-      const hoursDiff = Math.max(0, (departed - arrived) / (1000 * 60 * 60));
-      const payableTime = Math.max(
-        0,
-        hoursDiff - (stopLog.user?.free_wait_time || 0),
-      );
-      const amount = payableTime * (stopLog.user?.rate_per_hour || 0);
+      if (
+        claim.paid_at &&
+        claim.paid_at >= reportStart &&
+        claim.paid_at < nextYearStart
+      ) {
+        totalCollected += claim.paid_amount || 0;
+      }
 
-      total_detention += amount;
-      total_timeloast += payableTime;
-
-      if (amount > maxAmount) {
-        maxAmount = amount;
-        worstStopLogData = {
-          address: this.getStopLogAddress(stopLog) || 'Unknown Address',
-          total_lost: amount.toFixed(2),
-        };
+      if (
+        claim.paid_at &&
+        claim.paid_at >= reportStart &&
+        claim.paid_at < nextYearStart
+      ) {
+        const startedAt = claim.sent_at || claim.created_at;
+        paidClaimDays += Math.max(
+          0,
+          (claim.paid_at.getTime() - startedAt.getTime()) /
+            (1000 * 60 * 60 * 24),
+        );
+        paidClaimCount += 1;
       }
     });
 
+    const revenueLost = Math.max(0, totalClaimed - totalCollected);
+    const collectionRate =
+      totalClaimed > 0 ? (totalCollected / totalClaimed) * 100 : 0;
+    const avgDaysToPay =
+      paidClaimCount > 0 ? paidClaimDays / paidClaimCount : 0;
+
+    const revenueRealization =
+      period === ReportPeriod.YEARLY
+        ? Array.from({ length: 7 }, (_, index) => {
+            const year = chartStart.getFullYear() + index;
+
+            return {
+              label: String(year),
+              claimed: 0,
+              collected: 0,
+            };
+          })
+        : [
+            'Jan',
+            'Feb',
+            'Mar',
+            'Apr',
+            'May',
+            'Jun',
+            'Jul',
+            'Aug',
+            'Sep',
+            'Oct',
+            'Nov',
+            'Dec',
+          ].map((month) => ({
+            label: month,
+            claimed: 0,
+            collected: 0,
+          }));
+
+    taxClaims.forEach((claim) => {
+      const claimedIndex =
+        period === ReportPeriod.YEARLY
+          ? claim.created_at.getFullYear() - chartStart.getFullYear()
+          : claim.created_at.getMonth();
+
+      if (
+        claim.created_at >= reportStart &&
+        claim.created_at < nextYearStart &&
+        revenueRealization[claimedIndex]
+      ) {
+        revenueRealization[claimedIndex].claimed += claim.claim_amount;
+      }
+
+      if (
+        !claim.paid_at ||
+        claim.paid_at < reportStart ||
+        claim.paid_at >= nextYearStart
+      ) {
+        return;
+      }
+
+      const collectedIndex =
+        period === ReportPeriod.YEARLY
+          ? claim.paid_at.getFullYear() - chartStart.getFullYear()
+          : claim.paid_at.getMonth();
+
+      if (!revenueRealization[collectedIndex]) {
+        return;
+      }
+
+      revenueRealization[collectedIndex].collected += claim.paid_amount || 0;
+    });
+
     return ResponseHelper.success({
-      message: 'Weekly report fetched successfully',
+      message: 'Tax report fetched successfully',
       data: {
-        total_stops: stopLogs.length,
-        total_timeloast: total_timeloast.toFixed(2),
-        total_detention: total_detention.toFixed(2),
-        total_lost: total_detention.toFixed(2),
-        worst_stoplog: worstStopLogData || {
-          address: null,
-          total_lost: '0.00',
+        tab,
+        period,
+        date_range: {
+          start: reportStart,
+          end: new Date(nextYearStart.getTime() - 1),
         },
-        rate_per_hour: stopLogs[0]?.user?.rate_per_hour || 0,
+        total_claimed: totalClaimed.toFixed(2),
+        total_collected: totalCollected.toFixed(2),
+        collection_rate: collectionRate.toFixed(2),
+        avg_days_to_pay: avgDaysToPay.toFixed(2),
+        avg_days_to_pay_text: `${Math.round(avgDaysToPay)} days`,
+        revenue_lost: revenueLost.toFixed(2),
+        revenue_realization: revenueRealization.map((item) => ({
+          label: item.label,
+          claimed: item.claimed.toFixed(2),
+          collected: item.collected.toFixed(2),
+        })),
       },
     });
   }
