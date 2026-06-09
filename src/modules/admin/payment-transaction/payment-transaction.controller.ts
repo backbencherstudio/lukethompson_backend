@@ -21,7 +21,7 @@ export class PaymentTransactionController {
   @Get()
   async findAll(@Req() req: Request) {
     try {
-      const user_id = req.user.userId;
+      const user_id = req.user.id;
 
       const paymentTransactions =
         await this.paymentTransactionService.findAll(user_id);
@@ -39,7 +39,7 @@ export class PaymentTransactionController {
   @Get(':id')
   async findOne(@Req() req: Request, @Param('id') id: string) {
     try {
-      const user_id = req.user.userId;
+      const user_id = req.user.id;
 
       const paymentTransaction = await this.paymentTransactionService.findOne(
         id,
@@ -58,7 +58,7 @@ export class PaymentTransactionController {
   @Delete(':id')
   async remove(@Req() req: Request, @Param('id') id: string) {
     try {
-      const user_id = req.user.userId;
+      const user_id = req.user.id;
 
       const paymentTransaction = await this.paymentTransactionService.remove(
         id,

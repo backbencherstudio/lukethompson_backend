@@ -194,8 +194,8 @@ export class UserRepository {
     phone_number?: string;
     role_id?: string;
     type?: string;
-    free_wait_time: number;
-    rate_per_hour: number;
+    free_wait_time?: number;
+    rate_per_hour?: number;
   }) {
     const data = {};
     if (name) {

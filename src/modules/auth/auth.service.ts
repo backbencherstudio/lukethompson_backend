@@ -188,8 +188,8 @@ export class AuthService {
     email: string;
     password: string;
     type?: string;
-    free_wait_time: number;
-    rate_per_hour: number;
+    free_wait_time?: number;
+    rate_per_hour?: number;
   }) {
     // Check if email already exist
     const userEmailExist = await this.userRepository.exist({
@@ -211,11 +211,16 @@ export class AuthService {
     });
 
     // create stripe customer account
-    const stripeCustomer = await StripePayment.createCustomer({
-      user_id: user.id,
-      email: email,
-      name: name,
-    });
+    let stripeCustomer = null;
+    try {
+      stripeCustomer = await StripePayment.createCustomer({
+        user_id: user.id,
+        email: email,
+        name: name,
+      });
+    } catch (stripeError) {
+      console.error('Stripe customer creation failed:', stripeError.message);
+    }
 
     if (stripeCustomer) {
       await this.prisma.user.update({

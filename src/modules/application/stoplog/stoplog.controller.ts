@@ -118,25 +118,33 @@ export class StopLogController {
             type: 'object',
             properties: {
               id: { type: 'string', example: 'cl0a1b2c3d4e5f6g7h8i9j0k' },
-              arrived_at: { type: 'string', example: '10:00', nullable: true },
-              departed_at: { type: 'string', example: '15:54', nullable: true },
-              address: {
+              facility_name: {
                 type: 'string',
-                example: 'Warehouse A, Dhaka',
+                example: 'Acme Warehouse',
+              },
+              shipper_facility_id: {
+                type: 'string',
+                example: 'cl0a1b2c3d4e5f6g7h8i9j1k',
                 nullable: true,
               },
-              total_time: { type: 'string', example: '5.90', nullable: true },
-              payable_time: { type: 'string', example: '2.50' },
-              detention: { type: 'string', example: '250.00' },
-              lost: { type: 'string', example: '250.00' },
+              date: { type: 'string', format: 'date-time' },
+              amount: { type: 'string', example: '250.00' },
+              status: {
+                type: 'string',
+                enum: ['COMPLETED', 'PROGRESS'],
+                example: 'COMPLETED',
+              },
             },
           },
         },
         meta_data: {
           type: 'object',
           properties: {
-            total: { type: 'number', example: 100 },
-            page: { type: 'number', example: 1 },
+            next_cursor: {
+              type: 'string',
+              example: 'cl0a1b2c3d4e5f6g7h8i9j0k',
+              nullable: true,
+            },
             limit: { type: 'number', example: 10 },
             search: { type: 'string', example: 'Dhaka', nullable: true },
             filters: {
@@ -158,6 +166,48 @@ export class StopLogController {
     return this.StopLogService.getAllStopLogs(query, user_id);
   }
 
+  @ApiOperation({ summary: 'Get dashboard home metrics for stop logs' })
+  @ApiResponse({
+    status: 200,
+    description: 'Home data fetched successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: { type: 'string', example: 'Home data fetched successfully' },
+        data: {
+          type: 'object',
+          properties: {
+            total_detention: { type: 'string', example: '225.00' },
+            total_lost: { type: 'string', example: '225.00' },
+            total_stops: { type: 'number', example: 6 },
+            claimed_stops: { type: 'number', example: 3 },
+            total_hours: { type: 'string', example: '14.50' },
+            avg_hours_per_stop: { type: 'string', example: '2.42' },
+            avg_hours_per_stop_text: { type: 'string', example: '2h 25m' },
+            collection_rate: { type: 'string', example: '68.00' },
+            collection_rate_change: { type: 'string', example: '12.00' },
+            weekly_activity: {
+              type: 'object',
+              properties: {
+                total_stops: { type: 'number', example: 10 },
+                data: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      day: { type: 'string', example: 'Mon' },
+                      total_stops: { type: 'number', example: 2 },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
   @Get('home-data')
   getHomeData(
     @Query() query: QueryHomeDataDto,
@@ -166,6 +216,86 @@ export class StopLogController {
     return this.StopLogService.getHomeData(user_id, query);
   }
 
+  @ApiOperation({
+    summary: 'Get report data for weekly summary or tax report tab',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Report tab data fetched successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        success: { type: 'boolean', example: true },
+        message: {
+          type: 'string',
+          example: 'Weekly summary fetched successfully',
+        },
+        data: {
+          oneOf: [
+            {
+              type: 'object',
+              title: 'Weekly Summary Response',
+              properties: {
+                tab: { type: 'string', example: 'WEEKLY_SUMMARY' },
+                total_waiting_hours: { type: 'string', example: '14.50' },
+                total_waiting_text: { type: 'string', example: '14h 30m' },
+                detention_captured: { type: 'string', example: '225.00' },
+                revenue_lost: { type: 'string', example: '25.00' },
+                top_worst_stop: {
+                  type: 'object',
+                  properties: {
+                    facility_name: {
+                      type: 'string',
+                      example: 'Cold Storage Solutions',
+                      nullable: true,
+                    },
+                    waiting_hours: { type: 'string', example: '3.00' },
+                    waiting_time_text: { type: 'string', example: '3h 0m' },
+                  },
+                },
+              },
+            },
+            {
+              type: 'object',
+              title: 'Tax Report Response',
+              properties: {
+                tab: { type: 'string', example: 'TAX_REPORT' },
+                period: {
+                  type: 'string',
+                  enum: ['MONTHLY', 'YEARLY'],
+                  example: 'MONTHLY',
+                },
+                date_range: {
+                  type: 'object',
+                  properties: {
+                    start: { type: 'string', format: 'date-time' },
+                    end: { type: 'string', format: 'date-time' },
+                  },
+                },
+                total_claimed: { type: 'string', example: '600.00' },
+                total_collected: { type: 'string', example: '225.00' },
+                collection_rate: { type: 'string', example: '45.00' },
+                avg_days_to_pay: { type: 'string', example: '25.00' },
+                avg_days_to_pay_text: { type: 'string', example: '25 days' },
+                revenue_lost: { type: 'string', example: '375.00' },
+                revenue_realization: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      label: { type: 'string', example: 'Jan' },
+                      claimed: { type: 'string', example: '400.00' },
+                      collected: { type: 'string', example: '325.00' },
+                    },
+                  },
+                },
+              },
+            },
+          ],
+        },
+      },
+    },
+  })
   @Get('report')
   getReport(@Query() query: QueryReportDto, @GetUser('id') user_id: string) {
     return this.StopLogService.getReport(user_id, query);
@@ -205,7 +335,7 @@ export class StopLogController {
                   format: 'date-time',
                   nullable: true,
                 },
-                current_step: { type: 'string', example: 'ARRIVAL_TIME' },
+                current_step: { type: 'string', example: 'arrival_time' },
               },
             },
             {

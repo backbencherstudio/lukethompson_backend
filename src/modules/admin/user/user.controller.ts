@@ -43,14 +43,10 @@ export class UserController {
   @ApiResponse({ description: 'Get all users' })
   @Get()
   async findAll(
-    @Query() query: { q?: string; type?: string; approved?: string },
+    @Query() query: { search?: string; type?: string; approved?: string },
   ) {
     try {
-      const q = query.q;
-      const type = query.type;
-      const approved = query.approved;
-
-      const users = await this.userService.findAll({ q, type, approved });
+      const users = await this.userService.findAll(query);
       return users;
     } catch (error) {
       return {

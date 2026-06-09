@@ -18,8 +18,7 @@ export class StopLogService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAllByUser(user_id: string, query: QueryStopLogDto) {
-    const { page = 1, limit = 10, search } = query;
-    const skip = (page - 1) * limit;
+    const { cursor, limit = 10, search } = query;
 
     // 1. Verify user exists and get rates
     const user = await this.prisma.user.findUnique({
@@ -52,19 +51,21 @@ export class StopLogService {
     }
 
     // 3. Fetch data and count in parallel
-    const [total, stopLogs] = await Promise.all([
-      this.prisma.stopLog.count({ where }),
-      this.prisma.stopLog.findMany({
-        where,
-        skip: Number(skip),
-        take: Number(limit),
-        orderBy: { created_at: 'desc' },
-        include: {
-          arrival_location: true,
-          facility_address: true,
-        },
-      }),
-    ]);
+    const stopLogs = await this.prisma.stopLog.findMany({
+      where,
+      take: Number(limit) + 1,
+      cursor: cursor ? { id: cursor } : undefined,
+      orderBy: { created_at: 'desc' },
+      include: {
+        arrival_location: true,
+        facility_address: true,
+      },
+    });
+
+    const nextCursor =
+      stopLogs.length > Number(limit) ? stopLogs[Number(limit)]?.id : undefined;
+
+    if (nextCursor) stopLogs.pop();
 
     // 4. Transform and calculate detention
     const formattedData = stopLogs.map((log) => {
@@ -100,8 +101,7 @@ export class StopLogService {
       message: 'User stop logs fetched successfully',
       data: formattedData,
       meta_data: {
-        total,
-        page: Number(page),
+        next_cursor: nextCursor,
         limit: Number(limit),
       },
     });

@@ -42,19 +42,21 @@ export class CreateUserDto {
     type: Number,
     description: 'Free wait time in hours',
     example: 2,
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
-  free_wait_time: number;
+  free_wait_time?: number;
 
   @ApiProperty({
     type: Number,
     description: 'Rate per hour after free wait time',
     example: 100,
+    required: false,
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsNumber()
-  rate_per_hour: number;
+  rate_per_hour?: number;
 
   @ApiProperty({
     type: String,

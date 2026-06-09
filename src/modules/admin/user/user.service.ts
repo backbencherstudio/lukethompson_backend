@@ -18,17 +18,11 @@ export class UserService {
     try {
       const user = await this.userRepository.createUser(createUserDto);
 
-      if (user.success) {
-        return {
-          success: user.success,
-          message: user.message,
-        };
-      } else {
-        return {
-          success: user.success,
-          message: user.message,
-        };
-      }
+      return {
+        success: true,
+        message: 'User created successfully',
+        data: user,
+      };
     } catch (error) {
       return {
         success: false,

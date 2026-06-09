@@ -19,7 +19,7 @@ export class NotificationController {
   @Get()
   async findAll(@Req() req: Request) {
     try {
-      const user_id = req.user.userId;
+      const user_id = req.user.id;
 
       const notification = await this.notificationService.findAll(user_id);
 
@@ -36,7 +36,7 @@ export class NotificationController {
   @Delete(':id')
   async remove(@Req() req: Request, @Param('id') id: string) {
     try {
-      const user_id = req.user.userId;
+      const user_id = req.user.id;
       const notification = await this.notificationService.remove(id, user_id);
 
       return notification;
@@ -52,7 +52,7 @@ export class NotificationController {
   @Delete()
   async removeAll(@Req() req: Request) {
     try {
-      const user_id = req.user.userId;
+      const user_id = req.user.id;
       const notification = await this.notificationService.removeAll(user_id);
 
       return notification;
