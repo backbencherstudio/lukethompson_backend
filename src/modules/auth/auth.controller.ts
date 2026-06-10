@@ -13,6 +13,7 @@ import {
 import {
   ApiBearerAuth,
   ApiBody,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiOperation,
   ApiResponse,
@@ -43,9 +44,33 @@ import { GetUser } from './decorators/get-user.decorator';
 export class AuthController {
   constructor(private authService: AuthService) {}
 
-  @ApiOperation({ summary: 'Get user details' })
+  @ApiOperation({
+    summary: 'Get current user profile details',
+    description:
+      'Fetches profile information of the currently logged-in user. Requires a valid JWT token (either user_token or admin_token) in the Authorization header. Returns user identity, avatar path, role type, and metadata.',
+  })
   @ApiBearerAuth('user_token')
   @ApiBearerAuth('admin_token')
+  @ApiResponse({
+    status: 200,
+    description: 'User details retrieved successfully.',
+    schema: {
+      example: {
+        success: true,
+        message: 'User found successfully',
+        data: {
+          id: 'cl0a1b2c3d4e5f6g7h8i9j0k',
+          name: 'John Doe',
+          email: 'john.doe@example.com',
+          avatar: 'avatar-12345.png',
+          avatar_url: 'http://localhost:2004/storage/avatar/avatar-12345.png',
+          phone_number: '+1234567890',
+          type: 'user',
+          created_at: '2026-06-10T14:32:09.000Z',
+        },
+      },
+    },
+  })
   @UseGuards(JwtAuthGuard)
   @Get('me')
   me(@GetUser('id') user_id: string) {
@@ -53,9 +78,9 @@ export class AuthController {
   }
 
   @ApiOperation({
-    summary: 'Register a user',
+    summary: 'Register a new user account',
     description:
-      'Creates a new user account and sends an OTP verification code to the registered email address.',
+      'Creates a new user account in the system database. Performs a check to ensure email uniqueness. Upon successful creation, it automatically initializes a customer profile in Stripe for billing purposes and sends an OTP verification code to the registered email address.',
   })
   @ApiCreatedResponse({
     description: 'User registered successfully. OTP sent to email.',
@@ -73,12 +98,12 @@ export class AuthController {
 
   @ApiBody({ type: LoginDto })
   @ApiOperation({
-    summary: 'Login user',
+    summary: 'Authenticate / Login user',
     description:
-      'Logs in a user with their email and password. Returns an access token and user details if credentials are valid.',
+      'Logs in a user or administrator using their registered email and password credentials. On success, returns a JWT access token and the user profile summary.',
   })
   @ApiResponse({
-    status: 200,
+    status: 201,
     description:
       'User logged in successfully. Returns access token and user details.',
     schema: {
@@ -90,7 +115,15 @@ export class AuthController {
           access_token:
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluQGV4YW1wbGUuY29tIiwic3ViIjoiMSIsImlhdCI6MTY3ODc5OTM4MywiZXhwIjoxNjc4Nzk5MzgzfQ',
         },
-        type: 'user',
+        user: {
+          id: 'cl0a1b2c3d4e5f6g7h8i9j0k',
+          name: 'John Doe',
+          email: 'john.doe@example.com',
+          avatar: 'avatar-12345.png',
+          phone_number: '+1234567890',
+          created_at: '2026-06-10T14:32:09.000Z',
+          type: 'user',
+        },
       },
     },
   })
@@ -104,8 +137,9 @@ export class AuthController {
   }
 
   @ApiOperation({
-    summary: 'Update user',
-    description: 'Update user details',
+    summary: 'Update profile info',
+    description:
+      'Updates basic user details (name, phone number, and avatar image). Note: Avatar images are uploaded to the S3 bucket, and any previous avatar image file is automatically cleaned up/deleted from the storage driver. Requires JWT authorization.',
   })
   @ApiResponse({
     status: 200,
@@ -117,6 +151,8 @@ export class AuthController {
       },
     },
   })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({ type: UpdateUserDto })
   @ApiBearerAuth('user_token')
   @ApiBearerAuth('admin_token')
   @UseGuards(JwtAuthGuard)
@@ -146,11 +182,12 @@ export class AuthController {
   }
 
   @ApiOperation({
-    summary: 'Forgot password',
-    description: "Sends a password reset link to the user's email address.",
+    summary: 'Request password reset OTP',
+    description:
+      'Initiates password recovery. If the email exists in the database, generates a password reset OTP verification code and sends it via email.',
   })
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'Password reset link sent successfully.',
     schema: {
       example: {
@@ -165,11 +202,12 @@ export class AuthController {
   }
 
   @ApiOperation({
-    summary: 'Verify email',
-    description: 'Verify email address',
+    summary: 'Verify user email address',
+    description:
+      'Verifies the user email address using the registration OTP token. On success, sets the email_verified_at timestamp and deletes the OTP code.',
   })
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'Email verified successfully.',
     schema: {
       example: {
@@ -184,11 +222,12 @@ export class AuthController {
   }
 
   @ApiOperation({
-    summary: 'Resend verification email',
-    description: 'Resend verification email to the user',
+    summary: 'Resend registration verification OTP',
+    description:
+      'Generates and sends a new registration verification OTP code to the requested email if the user exists.',
   })
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'Verification email sent successfully.',
     schema: {
       example: {
@@ -207,16 +246,17 @@ export class AuthController {
   }
 
   @ApiOperation({
-    summary: 'Check OTP validity',
-    description: 'Check OTP validity',
+    summary: 'Verify OTP validity',
+    description:
+      'Verifies whether the provided OTP token is valid and active for the specified email without performing any final operations (e.g. email verification or password reset). Useful for front-end multi-step wizard checks.',
   })
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'OTP validity checked successfully.',
     schema: {
       example: {
         success: true,
-        message: 'OTP validity checked successfully',
+        message: 'OTP code is valid',
       },
     },
   })
@@ -226,11 +266,12 @@ export class AuthController {
   }
 
   @ApiOperation({
-    summary: 'Reset password',
-    description: 'Reset password for the user',
+    summary: 'Reset password using OTP',
+    description:
+      'Resets the user\'s password. Validates the recovery OTP code and applies the new password. Deletes the OTP code on success.',
   })
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'Password updated successfully.',
     schema: {
       example: {
@@ -245,11 +286,12 @@ export class AuthController {
   }
 
   @ApiOperation({
-    summary: 'Change password',
-    description: 'Change password for the user',
+    summary: 'Change account password',
+    description:
+      'Allows logged-in users to update their password. Validates their current password before saving the new one. Requires JWT authentication.',
   })
   @ApiResponse({
-    status: 200,
+    status: 201,
     description: 'Password updated successfully.',
     schema: {
       example: {
@@ -272,9 +314,23 @@ export class AuthController {
     });
   }
 
-  @ApiOperation({ summary: 'request email change' })
+  @ApiOperation({
+    summary: 'Request email address change',
+    description:
+      'Initiates an email address change flow. Generates an OTP verification code and sends it to the newly requested email address to verify its ownership. Requires JWT authorization.',
+  })
   @ApiBearerAuth('user_token')
   @ApiBearerAuth('admin_token')
+  @ApiResponse({
+    status: 201,
+    description: 'Request email change OTP code sent successfully.',
+    schema: {
+      example: {
+        success: true,
+        message: 'We have sent an OTP code to your email',
+      },
+    },
+  })
   @UseGuards(JwtAuthGuard)
   @Post('request-email-change')
   async requestEmailChange(
@@ -288,9 +344,23 @@ export class AuthController {
     );
   }
 
-  @ApiOperation({ summary: 'Change email address' })
+  @ApiOperation({
+    summary: 'Confirm email address change',
+    description:
+      'Confirms the email address change request. Validates the OTP verification token sent to the new email address. If valid, updates the user\'s email to the new address and deletes the OTP code. Requires JWT authorization.',
+  })
   @ApiBearerAuth('user_token')
   @ApiBearerAuth('admin_token')
+  @ApiResponse({
+    status: 201,
+    description: 'Email updated successfully.',
+    schema: {
+      example: {
+        success: true,
+        message: 'Email updated successfully',
+      },
+    },
+  })
   @UseGuards(JwtAuthGuard)
   @Post('change-email')
   async changeEmail(

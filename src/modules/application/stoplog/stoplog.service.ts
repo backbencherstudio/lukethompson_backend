@@ -284,23 +284,46 @@ export class StopLogService {
           throw new UnauthorizedException('User not found');
         }
 
-        const activeLog = await tx.stopLog.findFirst({
-          where: { user_id, departed_at: null },
-          orderBy: { created_at: 'desc' },
-          select: {
-            id: true,
-            arrived_at: true,
-            docked_at: true,
-            completed_at: true,
-            departed_at: true,
-            bol_number: true,
-            _count: {
+        const activeLog = dto.id
+          ? await tx.stopLog.findUnique({
+              where: { id: dto.id },
               select: {
-                attachments: true,
+                id: true,
+                arrived_at: true,
+                docked_at: true,
+                completed_at: true,
+                departed_at: true,
+                bol_number: true,
+                user_id: true,
+                _count: {
+                  select: {
+                    attachments: true,
+                  },
+                },
               },
-            },
-          },
-        });
+            })
+          : await tx.stopLog.findFirst({
+              where: { user_id, departed_at: null },
+              orderBy: { created_at: 'desc' },
+              select: {
+                id: true,
+                arrived_at: true,
+                docked_at: true,
+                completed_at: true,
+                departed_at: true,
+                bol_number: true,
+                user_id: true,
+                _count: {
+                  select: {
+                    attachments: true,
+                  },
+                },
+              },
+            });
+
+        if (activeLog && activeLog.user_id !== user_id) {
+          throw new UnauthorizedException('Unauthorized access to stop log');
+        }
 
         const now = new Date();
 

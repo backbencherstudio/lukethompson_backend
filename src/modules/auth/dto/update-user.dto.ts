@@ -15,11 +15,10 @@ export class UpdateUserDto extends PartialType(
 
   @IsOptional()
   @ApiProperty({
-    description: 'Avatar',
+    description: 'Avatar image file',
     type: 'string',
     format: 'binary',
-    example: 'avatar.jpg',
     required: false,
   })
-  avatar?: Express.Multer.File;
+  image?: Express.Multer.File;
 }

@@ -7,7 +7,7 @@ import {
   ValidateIf,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { Express } from 'express';
 
 export class LocationDto {
@@ -62,6 +62,14 @@ export enum LogStopStep {
 
 export class PutStopLogDto {
   @ApiPropertyOptional({
+    example: 'cl0a1b2c3d4e5f6g7h8i9j0k',
+    description: 'Existing stop log id to update (required for steps other than arrival_time).',
+  })
+  @IsString()
+  @IsOptional()
+  id?: string;
+
+  @ApiPropertyOptional({
     example: 'cmabc123shipper',
     description: 'Existing shipper facility id.',
   })
@@ -82,6 +90,19 @@ export class PutStopLogDto {
     description: 'Location details (optional for update)',
   })
   @IsOptional()
+  @Transform(({ value }) => {
+    if (value === '' || value === null || value === undefined) {
+      return undefined;
+    }
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch (e) {
+        return value;
+      }
+    }
+    return value;
+  })
   @ValidateNested()
   @Type(() => LocationDto)
   location?: LocationDto;

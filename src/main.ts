@@ -104,6 +104,7 @@ async function bootstrap() {
       persistAuthorization: true,
       defaultModelsExpandDepth: -1,
       displayRequestDuration: true,
+      docExpansion: 'none',
 
       // 1. Persistence Logic: Reload holeo jeno authorize thake
       onComplete: () => {
@@ -129,10 +130,7 @@ async function bootstrap() {
         ) {
           try {
             const body = response.body || response.obj || response.data;
-            const data =
-              typeof body === 'string'
-                ? JSON.parse(body)
-                : body;
+            const data = typeof body === 'string' ? JSON.parse(body) : body;
 
             const token = data?.authorization?.access_token;
             // Handle both response structures safely
