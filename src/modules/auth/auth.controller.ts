@@ -66,16 +66,6 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad Request - Validation error or email already exists.',
-    schema: {
-      example: {
-        success: false,
-        message: 'Email already exist',
-      },
-    },
-  })
   @Post('register')
   create(@Body() data: RegisterUserDto) {
     return this.authService.register(data);
@@ -101,26 +91,6 @@ export class AuthController {
             'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluQGV4YW1wbGUuY29tIiwic3ViIjoiMSIsImlhdCI6MTY3ODc5OTM4MywiZXhwIjoxNjc4Nzk5MzgzfQ',
         },
         type: 'user',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - Invalid email or password.',
-    schema: {
-      example: {
-        success: false,
-        message: 'Password not matched',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Not Found - Email not found.',
-    schema: {
-      example: {
-        success: false,
-        message: 'Email not found',
       },
     },
   })
@@ -189,16 +159,6 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad Request - Email not found.',
-    schema: {
-      example: {
-        success: false,
-        message: 'Email not found',
-      },
-    },
-  })
   @Post('forgot-password')
   forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     return this.authService.forgotPassword(forgotPasswordDto.email);
@@ -215,16 +175,6 @@ export class AuthController {
       example: {
         success: true,
         message: 'Email verified successfully',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad Request - Invalid token.',
-    schema: {
-      example: {
-        success: false,
-        message: 'Invalid token',
       },
     },
   })
@@ -270,16 +220,6 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad Request - Invalid token.',
-    schema: {
-      example: {
-        success: false,
-        message: 'Invalid token',
-      },
-    },
-  })
   @Post('check-otp')
   checkOTPValidity(@Body() data: VerifyEmailDto) {
     return this.authService.checkOTPValidity(data);
@@ -299,16 +239,6 @@ export class AuthController {
       },
     },
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad Request - Invalid token.',
-    schema: {
-      example: {
-        success: false,
-        message: 'Invalid token',
-      },
-    },
-  })
   @Post('reset-password')
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return await this.authService.resetPassword(resetPasswordDto);
@@ -325,16 +255,6 @@ export class AuthController {
       example: {
         success: true,
         message: 'Password updated successfully',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Bad Request - Invalid credentials.',
-    schema: {
-      example: {
-        success: false,
-        message: 'Invalid credentials',
       },
     },
   })

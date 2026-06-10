@@ -14,7 +14,7 @@ export class RegisterUserDto {
   @ApiProperty({
     type: String,
     description: 'Name',
-    example: 'John Doe',
+    example: 'user',
   })
   @IsString()
   @IsNotEmpty()
@@ -23,7 +23,7 @@ export class RegisterUserDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'johndoe@example.com',
+    example: 'user@example.com',
   })
   @IsEmail()
   @IsNotEmpty()
@@ -74,7 +74,7 @@ export class LoginDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'johndoe@example.com',
+    example: 'user@example.com',
   })
   @IsEmail()
   @IsNotEmpty()
@@ -94,7 +94,7 @@ export class ForgotPasswordDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'johndoe@example.com',
+    example: 'user@example.com',
   })
   @IsEmail()
   @IsNotEmpty()
@@ -105,7 +105,7 @@ export class ResetPasswordDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'johndoe@example.com',
+    example: 'user@example.com',
   })
   @IsEmail()
   @IsNotEmpty()
@@ -154,7 +154,7 @@ export class ResendVerificationEmailDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'johndoe@example.com',
+    example: 'user@example.com',
   })
   @IsEmail()
   @IsNotEmpty()
@@ -165,7 +165,7 @@ export class VerifyEmailDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'johndoe@example.com',
+    example: 'user@example.com',
   })
   @IsEmail()
   @IsNotEmpty()
@@ -177,7 +177,7 @@ export class VerifyEmailDto {
     example: '12345678',
   })
   @IsNotEmpty()
-  @MinLength(8, { message: 'Token should be minimum 8' })
+  @MinLength(6, { message: 'Token should be minimum 8' })
   token: string;
 }
 
@@ -185,7 +185,7 @@ export class EmailChangeRequestDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'johndoe@example.com',
+    example: 'user@example.com',
   })
   @IsEmail()
   @IsNotEmpty()
@@ -196,7 +196,7 @@ export class ChangeEmailAddressDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'johndoe@example.com',
+    example: 'user@example.com',
   })
   @IsEmail()
   @IsNotEmpty()

@@ -107,15 +107,17 @@ async function bootstrap() {
 
       // 1. Persistence Logic: Reload holeo jeno authorize thake
       onComplete: () => {
-        const ui = window['ui'];
-        if (ui) {
-          const persistedAuth = JSON.parse(
-            localStorage.getItem('authorized') || '{}',
-          );
-          if (Object.keys(persistedAuth).length > 0) {
-            ui.authActions.authorize(persistedAuth);
+        setTimeout(() => {
+          const ui = window['ui'];
+          if (ui) {
+            const persistedAuth = JSON.parse(
+              localStorage.getItem('authorized') || '{}',
+            );
+            if (Object.keys(persistedAuth).length > 0) {
+              ui.authActions.authorize(persistedAuth);
+            }
           }
-        }
+        }, 100);
       },
 
       // 2. Interceptor: Login hole auto-set hobe
@@ -123,13 +125,14 @@ async function bootstrap() {
         if (
           response.url &&
           response.url.includes('/auth/login') &&
-          response.status === 200
+          (response.status === 200 || response.status === 201)
         ) {
           try {
+            const body = response.body || response.obj || response.data;
             const data =
-              typeof response.body === 'string'
-                ? JSON.parse(response.body)
-                : response.body;
+              typeof body === 'string'
+                ? JSON.parse(body)
+                : body;
 
             const token = data?.authorization?.access_token;
             // Handle both response structures safely
@@ -139,16 +142,6 @@ async function bootstrap() {
               const key = userType === 'admin' ? 'admin_token' : 'user_token';
 
               const authObj = {
-                // Set the default bearer so @ApiBearerAuth() endpoints work
-                bearer: {
-                  name: 'bearer',
-                  schema: {
-                    type: 'http',
-                    scheme: 'bearer',
-                    bearerFormat: 'JWT',
-                  },
-                  value: token,
-                },
                 // Set the specific token (user_token or admin_token)
                 [key]: {
                   name: key,
