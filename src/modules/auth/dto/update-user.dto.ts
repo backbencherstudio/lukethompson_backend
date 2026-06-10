@@ -1,9 +1,9 @@
 import { ApiProperty, OmitType, PartialType } from '@nestjs/swagger';
-import { CreateUserDto } from './create-auth.dto';
+import { RegisterUserDto } from './create-auth.dto';
 import { IsOptional, IsString } from 'class-validator';
 
 export class UpdateUserDto extends PartialType(
-  OmitType(CreateUserDto, ['type', 'password', 'email']),
+  OmitType(RegisterUserDto, ['type', 'password', 'email']),
 ) {
   @ApiProperty({
     description: 'Phone number',

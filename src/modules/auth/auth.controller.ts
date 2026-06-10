@@ -26,7 +26,7 @@ import { LocalAuthGuard } from './guards/local-auth.guard';
 import {
   ChangeEmailAddressDto,
   ChangePasswordDto,
-  CreateUserDto,
+  RegisterUserDto,
   EmailChangeRequestDto,
   ForgotPasswordDto,
   LoginDto,
@@ -36,6 +36,7 @@ import {
 } from './dto/create-auth.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { GetUser } from './decorators/get-user.decorator';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -43,14 +44,12 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @ApiOperation({ summary: 'Get user details' })
-  @ApiBearerAuth()
+  @ApiBearerAuth('user_token')
+  @ApiBearerAuth('admin_token')
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  async me(@Req() req: Request) {
-    const user_id = req.user.id;
-    const response = await this.authService.me(user_id);
-
-    return response;
+  me(@GetUser('id') user_id: string) {
+    return this.authService.me(user_id);
   }
 
   @ApiOperation({
@@ -58,18 +57,27 @@ export class AuthController {
     description:
       'Creates a new user account and sends an OTP verification code to the registered email address.',
   })
-  @ApiResponse({
-    status: 201,
+  @ApiCreatedResponse({
     description: 'User registered successfully. OTP sent to email.',
     schema: {
       example: {
         success: true,
-        message: 'User registered successfully. OTP sent to email.',
+        message: 'We have sent an OTP code to your email',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Validation error or email already exists.',
+    schema: {
+      example: {
+        success: false,
+        message: 'Email already exist',
       },
     },
   })
   @Post('register')
-  create(@Body() data: CreateUserDto) {
+  create(@Body() data: RegisterUserDto) {
     return this.authService.register(data);
   }
 
@@ -96,6 +104,26 @@ export class AuthController {
       },
     },
   })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - Invalid email or password.',
+    schema: {
+      example: {
+        success: false,
+        message: 'Password not matched',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Not Found - Email not found.',
+    schema: {
+      example: {
+        success: false,
+        message: 'Email not found',
+      },
+    },
+  })
   @UseGuards(LocalAuthGuard)
   @Post('login')
   login(@Req() req: Request) {
@@ -119,7 +147,8 @@ export class AuthController {
       },
     },
   })
-  @ApiBearerAuth()
+  @ApiBearerAuth('user_token')
+  @ApiBearerAuth('admin_token')
   @UseGuards(JwtAuthGuard)
   @Patch('update')
   @UseInterceptors(
@@ -160,6 +189,16 @@ export class AuthController {
       },
     },
   })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Email not found.',
+    schema: {
+      example: {
+        success: false,
+        message: 'Email not found',
+      },
+    },
+  })
   @Post('forgot-password')
   forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     return this.authService.forgotPassword(forgotPasswordDto.email);
@@ -176,6 +215,16 @@ export class AuthController {
       example: {
         success: true,
         message: 'Email verified successfully',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Invalid token.',
+    schema: {
+      example: {
+        success: false,
+        message: 'Invalid token',
       },
     },
   })
@@ -221,6 +270,16 @@ export class AuthController {
       },
     },
   })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Invalid token.',
+    schema: {
+      example: {
+        success: false,
+        message: 'Invalid token',
+      },
+    },
+  })
   @Post('check-otp')
   checkOTPValidity(@Body() data: VerifyEmailDto) {
     return this.authService.checkOTPValidity(data);
@@ -237,6 +296,16 @@ export class AuthController {
       example: {
         success: true,
         message: 'Password updated successfully',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Invalid token.',
+    schema: {
+      example: {
+        success: false,
+        message: 'Invalid token',
       },
     },
   })
@@ -259,7 +328,18 @@ export class AuthController {
       },
     },
   })
-  @ApiBearerAuth()
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Invalid credentials.',
+    schema: {
+      example: {
+        success: false,
+        message: 'Invalid credentials',
+      },
+    },
+  })
+  @ApiBearerAuth('user_token')
+  @ApiBearerAuth('admin_token')
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
   changePassword(
@@ -273,7 +353,8 @@ export class AuthController {
   }
 
   @ApiOperation({ summary: 'request email change' })
-  @ApiBearerAuth()
+  @ApiBearerAuth('user_token')
+  @ApiBearerAuth('admin_token')
   @UseGuards(JwtAuthGuard)
   @Post('request-email-change')
   async requestEmailChange(
@@ -288,7 +369,8 @@ export class AuthController {
   }
 
   @ApiOperation({ summary: 'Change email address' })
-  @ApiBearerAuth()
+  @ApiBearerAuth('user_token')
+  @ApiBearerAuth('admin_token')
   @UseGuards(JwtAuthGuard)
   @Post('change-email')
   async changeEmail(

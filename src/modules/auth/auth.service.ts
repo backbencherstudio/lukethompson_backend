@@ -21,6 +21,7 @@ import { DateHelper } from '../../common/helper/date.helper';
 import { StripePayment } from '../../common/lib/Payment/stripe/StripePayment';
 import {
   ChangePasswordDto,
+  RegisterUserDto,
   ResetPasswordDto,
   VerifyEmailDto,
 } from './dto/create-auth.dto';
@@ -176,22 +177,11 @@ export class AuthService {
     };
   }
 
-  async register({
-    name,
-    email,
-    password,
-    type,
-    free_wait_time,
-    rate_per_hour,
-  }: {
-    name: string;
-    email: string;
-    password: string;
-    type?: string;
-    free_wait_time?: number;
-    rate_per_hour?: number;
-  }) {
+  async register(registerUserDto: RegisterUserDto) {
     // Check if email already exist
+
+    const { name, email, password, type, free_wait_time, rate_per_hour } =
+      registerUserDto;
     const userEmailExist = await this.userRepository.exist({
       field: 'email',
       value: String(email),
@@ -205,9 +195,9 @@ export class AuthService {
       name: name,
       email: email,
       password: password,
-      free_wait_time: free_wait_time,
-      rate_per_hour: rate_per_hour,
-      type: type,
+      free_wait_time,
+      rate_per_hour,
+      type,
     });
 
     // create stripe customer account

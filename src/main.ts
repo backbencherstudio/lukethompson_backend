@@ -23,7 +23,7 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
   app.enableCors({
-    origin: true,
+    origin: '*',
     credentials: true,
     allowedHeaders: 'Content-Type, Accept, Authorization',
   });
@@ -81,7 +81,11 @@ async function bootstrap() {
     .setTitle(`${appConfig().app.name} API`)
     .setDescription(`${appConfig().app.name} API Docs`)
     .setVersion('1.0')
-    // .addTag(`${appConfig().app.name}`)
+    .addTag(`${appConfig().app.name}`)
+    // .addBearerAuth(
+    //   { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+    //   'bearer', // Generic token for endpoints with @ApiBearerAuth()
+    // )
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       'user_token',
@@ -97,42 +101,56 @@ async function bootstrap() {
   SwaggerModule.setup('api/docs', app, document, {
     customSiteTitle: `${appConfig().app.name?.toUpperCase()} API`,
     swaggerOptions: {
-      docExpansion: 'none',
       persistAuthorization: true,
       defaultModelsExpandDepth: -1,
+      displayRequestDuration: true,
 
-      responseInterceptor: function (response) {
-        console.log('Swagger Interceptor Fired! URL:', response.url);
+      // 1. Persistence Logic: Reload holeo jeno authorize thake
+      onComplete: () => {
+        const ui = window['ui'];
+        if (ui) {
+          const persistedAuth = JSON.parse(
+            localStorage.getItem('authorized') || '{}',
+          );
+          if (Object.keys(persistedAuth).length > 0) {
+            ui.authActions.authorize(persistedAuth);
+          }
+        }
+      },
 
-        try {
-          if (response.url && response.url.indexOf('/auth/login') !== -1) {
-            console.log('Login API detected! Status:', response.status);
+      // 2. Interceptor: Login hole auto-set hobe
+      responseInterceptor: (response) => {
+        if (
+          response.url &&
+          response.url.includes('/auth/login') &&
+          response.status === 200
+        ) {
+          try {
+            const data =
+              typeof response.body === 'string'
+                ? JSON.parse(response.body)
+                : response.body;
 
-            if (response.status === 200 || response.status === 201) {
-              var data = response.data || response.body || response.obj;
+            const token = data?.authorization?.access_token;
+            // Handle both response structures safely
+            const userType = data?.user?.type || data?.type;
 
-              if (typeof data === 'string') {
-                data = JSON.parse(data);
-              }
+            if (token) {
+              const key = userType === 'admin' ? 'admin_token' : 'user_token';
 
-              console.log('Login Response Data:', data);
-
-              var token =
-                data && data.authorization && data.authorization.access_token;
-              var type = data && data.type;
-
-              if (!token) {
-                console.log('Error: Token not found in the response!');
-                return response;
-              }
-
-              var key = type === 'admin' ? 'admin_token' : 'user_token';
-
-              var ui = window['ui'];
-
-              if (ui) {
-                var authObj = {};
-                authObj[key] = {
+              const authObj = {
+                // Set the default bearer so @ApiBearerAuth() endpoints work
+                bearer: {
+                  name: 'bearer',
+                  schema: {
+                    type: 'http',
+                    scheme: 'bearer',
+                    bearerFormat: 'JWT',
+                  },
+                  value: token,
+                },
+                // Set the specific token (user_token or admin_token)
+                [key]: {
                   name: key,
                   schema: {
                     type: 'http',
@@ -140,37 +158,22 @@ async function bootstrap() {
                     bearerFormat: 'JWT',
                   },
                   value: token,
-                };
+                },
+              };
 
+              const ui = window['ui'];
+              if (ui) {
                 ui.authActions.authorize(authObj);
-
-                try {
-                  var currentAuth = window.localStorage.getItem('authorized');
-                  var parsedAuth = currentAuth ? JSON.parse(currentAuth) : {};
-
-                  parsedAuth[key] = authObj[key];
-
-                  window.localStorage.setItem(
-                    'authorized',
-                    JSON.stringify(parsedAuth),
-                  );
-                  console.log('Token successfully persisted to localStorage!');
-                } catch (e) {
-                  console.error('Failed to save token to localStorage', e);
-                }
-
+                localStorage.setItem('authorized', JSON.stringify(authObj));
                 console.log(
-                  'Success: Swagger auto authorized with ' + key + '!',
+                  `✅ Auto-authorized via login interceptor (${key})`,
                 );
-              } else {
-                console.log('Error: Swagger UI instance not found on window!');
               }
             }
+          } catch (err) {
+            console.warn('Swagger Interceptor:', err);
           }
-        } catch (err) {
-          console.error('Swagger token auto set failed:', err);
         }
-
         return response;
       },
     },

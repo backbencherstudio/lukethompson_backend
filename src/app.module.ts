@@ -93,6 +93,6 @@ import { RepositoryModule } from './common/repository/repository.module';
 })
 export class AppModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(LoggerMiddleware).forRoutes('*');
+    consumer.apply(LoggerMiddleware).forRoutes('*path');
   }
 }

@@ -14,7 +14,9 @@ import { createReadStream } from 'fs';
 import { join } from 'path';
 import { Response } from 'express';
 import { Readable } from 'stream';
+import { ApiExcludeController } from '@nestjs/swagger';
 
+@ApiExcludeController()
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}

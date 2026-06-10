@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 import { Role } from '../../../common/guard/role/role.enum';
 
-export class CreateUserDto {
+export class RegisterUserDto {
   @ApiProperty({
     type: String,
     description: 'Name',
