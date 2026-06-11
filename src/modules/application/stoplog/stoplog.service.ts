@@ -245,6 +245,7 @@ export class StopLogService {
 
     const stopLogSelect = {
       id: true,
+      user_id: true,
       shipper_facility_id: true,
       shipper_name: true,
       facility_name: true,
@@ -277,7 +278,7 @@ export class StopLogService {
       return await this.prisma.$transaction(async (tx) => {
         const user = await tx.user.findUnique({
           where: { id: user_id },
-          select: { id: true },
+          select: { id: true, rate_per_hour: true, free_wait_time: true },
         });
 
         if (!user) {
@@ -337,9 +338,7 @@ export class StopLogService {
         const hasAttachments = totalAttachmentsCount > 0;
 
         let determineStatus: PrismaStopLogStatus = PrismaStopLogStatus.ACTIVE;
-        if (hasAttachments && hasBolNumber) {
-          determineStatus = PrismaStopLogStatus.CLAIM_DRAFTED;
-        } else if (hasDepartureTime) {
+        if (hasDepartureTime) {
           determineStatus = PrismaStopLogStatus.COMPLETED;
         }
 
@@ -450,6 +449,35 @@ export class StopLogService {
                   select: stopLogSelect,
                 });
               })();
+
+        if (
+          stoplog.status === PrismaStopLogStatus.COMPLETED &&
+          hasAttachments &&
+          hasBolNumber &&
+          stoplog.departed_at &&
+          stoplog.user_id &&
+          stoplog.shipper_facility_id
+        ) {
+          const arrived = new Date(stoplog.arrived_at).getTime();
+          const departed = new Date(stoplog.departed_at).getTime();
+          const totalTime = Math.max(0, (departed - arrived) / (1000 * 60 * 60));
+          const payableTime = Math.max(0, totalTime - (user.free_wait_time || 0));
+          const totalAmount = payableTime * (user.rate_per_hour || 0);
+
+          await tx.claim.upsert({
+            where: { stop_log_id: stoplog.id },
+            create: {
+              status: ClaimStatus.DRAFT,
+              claim_amount: Math.round(totalAmount),
+              user_id: stoplog.user_id,
+              shipper_facility_id: stoplog.shipper_facility_id,
+              stop_log_id: stoplog.id,
+            },
+            update: {
+              claim_amount: Math.round(totalAmount),
+            },
+          });
+        }
 
         return ResponseHelper.success({
           message: 'Stop log step recorded successfully',
