@@ -327,6 +327,22 @@ export class StopLogService {
 
         const now = new Date();
 
+        const hasDepartureTime =
+          step === LogStopStep.DEPARTURE_TIME ||
+          Boolean(activeLog?.departed_at);
+        const currentBolNumber = bol_number?.trim() || activeLog?.bol_number;
+        const hasBolNumber = Boolean(currentBolNumber);
+        const totalAttachmentsCount =
+          (activeLog?._count?.attachments || 0) + uploadedAttachments.length;
+        const hasAttachments = totalAttachmentsCount > 0;
+
+        let determineStatus: PrismaStopLogStatus = PrismaStopLogStatus.ACTIVE;
+        if (hasAttachments && hasBolNumber) {
+          determineStatus = PrismaStopLogStatus.CLAIM_DRAFTED;
+        } else if (hasDepartureTime) {
+          determineStatus = PrismaStopLogStatus.COMPLETED;
+        }
+
         const stoplog =
           step === LogStopStep.ARRIVAL_TIME
             ? await (async () => {
@@ -374,10 +390,7 @@ export class StopLogService {
                       shipperFacility.name ||
                       'Unknown Facility',
                     bol_number: bol_number?.trim() || undefined,
-                    status:
-                      uploadedAttachments.length > 0
-                        ? PrismaStopLogStatus.COMPLETED
-                        : PrismaStopLogStatus.ACTIVE,
+                    status: determineStatus,
                     arrived_at: now,
                     arrival_location_id: arrivalLocationId,
                     facility_address_id: facilityAddressId,
@@ -415,16 +428,10 @@ export class StopLogService {
                     ? await this.createLocation(tx, dto.location)
                     : undefined;
 
-                const totalAttachments =
-                  activeLog._count.attachments + uploadedAttachments.length;
-
                 const updateData: Prisma.StopLogUpdateInput = {
                   [config.field]: now,
                   bol_number: bol_number?.trim() || undefined,
-                  status:
-                    totalAttachments > 0
-                      ? PrismaStopLogStatus.COMPLETED
-                      : PrismaStopLogStatus.ACTIVE,
+                  status: determineStatus,
                   attachments: uploadedAttachments.length
                     ? {
                         create: uploadedAttachments,
@@ -582,6 +589,8 @@ export class StopLogService {
         },
         arrival_location: true,
         facility_address: true,
+        attachments: true,
+        claim: true,
       },
     });
     if (!stoplog) throw new UnauthorizedException('Stop log not found');
@@ -625,17 +634,46 @@ export class StopLogService {
 
     const address = this.getStopLogAddress(stoplog);
 
+    const gps_coordinates = stoplog.arrival_location
+      ? `${stoplog.arrival_location.lat}, ${stoplog.arrival_location.lng}`
+      : stoplog.facility_address
+        ? `${stoplog.facility_address.lat}, ${stoplog.facility_address.lng}`
+        : null;
+
     return ResponseHelper.success({
       message: 'Stop log fetched successfully',
       data: {
         id: stoplog.id,
+        status: stoplog.status,
+        facility_name: stoplog.facility_name,
+        arrived_at: stoplog.arrived_at,
+        departed_at: stoplog.departed_at,
+        bol_number: stoplog.bol_number,
+        gps_coordinates,
         rate_per_hour: stoplog.user?.rate_per_hour,
         free_wait_time: stoplog.user?.free_wait_time,
         billable_time: payableTimeFormatted,
+        billable_time_text: this.formatHoursMinutes(payableTime),
         arrival_departure_time: totalTime,
         address,
         detention: totalAmount.toFixed(2),
         lost: totalAmount.toFixed(2),
+        attachments: stoplog.attachments.map((att) => ({
+          id: att.id,
+          file_name: att.file_name,
+          file_url: att.file_url,
+          type: att.type,
+        })),
+        claim: stoplog.claim
+          ? {
+              id: stoplog.claim.id,
+              status: stoplog.claim.status,
+              amount: stoplog.claim.claim_amount,
+              paid_amount: stoplog.claim.paid_amount,
+              sent_at: stoplog.claim.sent_at,
+              recipient_email: stoplog.claim.recipient_email,
+            }
+          : null,
       },
     });
   }

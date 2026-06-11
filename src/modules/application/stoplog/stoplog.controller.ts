@@ -1,18 +1,14 @@
 import {
   Controller,
   Get,
-  Post,
   Body,
-  Patch,
   Param,
-  Delete,
   Put,
   UseGuards,
   UseInterceptors,
   UploadedFiles,
 } from '@nestjs/common';
 import { StopLogService } from './stoplog.service';
-import { UpdateStopLogDto } from './dto/update-stoplog.dto';
 import { PutStopLogDto } from './dto/create-stoplog.dto';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guard/role/roles.guard';
