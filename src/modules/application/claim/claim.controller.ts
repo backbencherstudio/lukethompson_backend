@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Body, Param, Patch } from '@nestjs/common';
 import { ClaimService } from './claim.service';
 import { QueryClaimDto } from './dto/query-claim.dto';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
@@ -6,10 +6,12 @@ import { RolesGuard } from 'src/common/guard/role/roles.guard';
 import { GetUser } from 'src/modules/auth/decorators/get-user.decorator';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { MarkPaidDto, MarkDeniedDto } from './dto/update-claim.dto';
 
 @ApiTags('Application claim')
 @ApiBearerAuth('user_token')
@@ -84,5 +86,41 @@ export class ClaimController {
     @GetUser('id') user_id: string,
   ) {
     return this.claimService.getAllClaims(query, user_id);
+  }
+
+  @ApiOperation({
+    summary: 'Mark a claim as paid',
+    description: 'Allows marking a claim as paid and specifying the paid amount.',
+  })
+  @ApiBody({ type: MarkPaidDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Claim marked as paid successfully',
+  })
+  @Patch(':id/mark-paid')
+  markPaid(
+    @Param('id') id: string,
+    @Body() dto: MarkPaidDto,
+    @GetUser('id') user_id: string,
+  ) {
+    return this.claimService.markPaid(id, dto, user_id);
+  }
+
+  @ApiOperation({
+    summary: 'Mark a claim as denied / uncollectable',
+    description: 'Allows marking a claim as denied and specifying denial details.',
+  })
+  @ApiBody({ type: MarkDeniedDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Claim marked as denied successfully',
+  })
+  @Patch(':id/mark-denied')
+  markDenied(
+    @Param('id') id: string,
+    @Body() dto: MarkDeniedDto,
+    @GetUser('id') user_id: string,
+  ) {
+    return this.claimService.markDenied(id, dto, user_id);
   }
 }

@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ResponseHelper } from 'src/common/helper/response.helper';
 import { QueryClaimDto, QueryClaimStatus } from './dto/query-claim.dto';
 import { ClaimStatus, Prisma } from 'prisma/generated/client';
+import { MarkPaidDto, MarkDeniedDto } from './dto/update-claim.dto';
 
 @Injectable()
 export class ClaimService {
@@ -199,6 +200,55 @@ export class ClaimService {
           settled_this_week_amount: settledThisWeekAmount,
         },
       },
+    });
+  }
+
+  async markPaid(id: string, dto: MarkPaidDto, user_id: string) {
+    const claim = await this.prisma.claim.findFirst({
+      where: { id, user_id },
+    });
+    if (!claim) {
+      throw new NotFoundException('Claim not found');
+    }
+
+    const paid_amount = dto.paid_amount ?? claim.claim_amount;
+
+    const updatedClaim = await this.prisma.claim.update({
+      where: { id },
+      data: {
+        status: ClaimStatus.PAID,
+        paid_at: new Date(),
+        paid_amount,
+      },
+    });
+
+    return ResponseHelper.success({
+      message: 'Claim marked as paid successfully',
+      data: updatedClaim,
+    });
+  }
+
+  async markDenied(id: string, dto: MarkDeniedDto, user_id: string) {
+    const claim = await this.prisma.claim.findFirst({
+      where: { id, user_id },
+    });
+    if (!claim) {
+      throw new NotFoundException('Claim not found');
+    }
+
+    const updatedClaim = await this.prisma.claim.update({
+      where: { id },
+      data: {
+        status: ClaimStatus.DENIED,
+        denied_at: new Date(),
+        denied_by: dto.denied_by,
+        denial_reason: dto.denial_reason,
+      },
+    });
+
+    return ResponseHelper.success({
+      message: 'Claim marked as denied successfully',
+      data: updatedClaim,
     });
   }
 }
