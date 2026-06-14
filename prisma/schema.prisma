@@ -599,13 +599,10 @@ model ShipperFacilityRating {
 enum ClaimStatus {
   DRAFT
   SUBMITTED
-  FOLLOW_UP
-  IN_RECOURSE
   PAID
   DENIED
-  UNCOLLECTABLE
-  IN_COLLECTIONS
 }
+
 
 enum ClaimSendMethod {
   EMAIL
@@ -658,6 +655,8 @@ model Claim {
   recipient_email String?
   send_method     String  @default("EMAIL") // EMAIL, SMS, SHARE
 
+  recourse_level Int @default(0)
+
   // --- Follow-up Management ---
   followup_due_at   DateTime?
   last_follow_up_at DateTime?
@@ -668,8 +667,7 @@ model Claim {
   proof_package_url          String?
   proof_package_version      Int       @default(1)
 
-  // --- Recourse & Legal ---
-  recourse_level           Int     @default(0)
+  // --- Legal ---
   usps_tracking_number     String?
   fmcsa_complaint_number   String?
   small_claims_case_number String?
