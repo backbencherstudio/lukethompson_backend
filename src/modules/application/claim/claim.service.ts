@@ -1,13 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ResponseHelper } from 'src/common/helper/response.helper';
 import { QueryClaimDto, QueryClaimStatus } from './dto/query-claim.dto';
-import { ClaimStatus, Prisma } from 'prisma/generated/client';
+import { ClaimStatus, ClaimEventType, Prisma } from 'prisma/generated/client';
 import { MarkPaidDto, MarkDeniedDto } from './dto/update-claim.dto';
+import { MailService } from 'src/mail/mail.service';
+import { SendFollowUpDto } from './dto/send-follow-up.dto';
 
 @Injectable()
 export class ClaimService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) {}
 
   private getWeekStart(date: Date): Date {
     const d = new Date(date);
@@ -248,6 +253,141 @@ export class ClaimService {
 
     return ResponseHelper.success({
       message: 'Claim marked as denied successfully',
+      data: updatedClaim,
+    });
+  }
+
+  async sendFollowUp(id: string, dto: SendFollowUpDto, user_id: string) {
+    // 1. Fetch claim with stop log details and user details (driver name)
+    const claim = await this.prisma.claim.findFirst({
+      where: { id, user_id },
+      include: {
+        stop_log: true,
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!claim) {
+      throw new NotFoundException('Claim not found');
+    }
+
+    // 2. Validate downgrade restriction
+    let minLevel = 1;
+    if (claim.followup_count === 1) {
+      minLevel = 2;
+    } else if (claim.followup_count >= 2) {
+      minLevel = 3;
+    }
+
+    if (dto.level < minLevel) {
+      throw new BadRequestException(
+        `Downgrade restriction: Cannot select Level ${dto.level} follow-up when current follow-up count is ${claim.followup_count}`,
+      );
+    }
+
+    // 3. Resolve recipient and CC emails
+    const toEmail = claim.recipient_email || claim.stop_log?.broker_email;
+    if (!toEmail) {
+      throw new BadRequestException('No recipient email configured for this claim');
+    }
+
+    const cc = [];
+    if (claim.stop_log?.broker_email && claim.stop_log.broker_email !== toEmail) {
+      // Check if user has cc_broker setting enabled (defaults to true)
+      const brokerCcSetting = await this.prisma.userSetting.findFirst({
+        where: {
+          user_id,
+          setting: { key: 'cc_broker' },
+        },
+      });
+      const isCcEnabled = brokerCcSetting ? brokerCcSetting.value === 'true' : true;
+      if (isCcEnabled) {
+        cc.push(claim.stop_log.broker_email);
+      }
+    }
+
+    // 4. Determine template and subject line
+    let template = '';
+    let subject = '';
+    let templateLevelName = '';
+
+    const bolSuffix = claim.stop_log?.bol_number ? ` - BOL: ${claim.stop_log.bol_number}` : '';
+
+    if (dto.level === 1) {
+      template = 'follow-up-level1';
+      subject = `Professional Reminder: Outstanding Detention Payment${bolSuffix}`;
+      templateLevelName = 'Professional Reminder';
+    } else if (dto.level === 2) {
+      template = 'follow-up-level2';
+      subject = `Firm Notice: Past Due Detention Invoice${bolSuffix}`;
+      templateLevelName = 'Firm Notice';
+    } else {
+      template = 'follow-up-level3';
+      subject = `FINAL NOTICE: Immediate Detention Payment Required${bolSuffix}`;
+      templateLevelName = 'Final Notice';
+    }
+
+    // 5. Trigger email dispatch
+    const context = {
+      driverName: claim.user?.name || 'Driver',
+      facilityName: claim.stop_log?.facility_name || 'Unknown Facility',
+      amount: claim.claim_amount,
+      bolNumber: claim.stop_log?.bol_number || '',
+      loadNumber: claim.stop_log?.load_number || '',
+      brokerName: claim.stop_log?.broker_name || '',
+      brokerMcNumber: claim.stop_log?.broker_mc_number || '',
+      brokerEmail: claim.stop_log?.broker_email || '',
+    };
+
+    await this.mailService.sendClaimFollowUp({
+      to: toEmail,
+      cc: cc.length > 0 ? cc : undefined,
+      subject,
+      template,
+      context,
+    });
+
+    // 6. Database mutations in sequential transaction
+    const now = new Date();
+    const nextMilestone = new Date(now);
+    nextMilestone.setDate(nextMilestone.getDate() + 7); // update timestamp for next milestone (7 days from now)
+
+    const formattedDate = now.toISOString().split('T')[0];
+    const eventDescription = `Follow-up sent: ${templateLevelName} - ${formattedDate}`;
+
+    const updatedClaim = await this.prisma.$transaction(async (tx) => {
+      // Update claim fields
+      const updated = await tx.claim.update({
+        where: { id: claim.id },
+        data: {
+          followup_count: claim.followup_count + 1,
+          last_follow_up_at: now,
+          followup_due_at: nextMilestone,
+          recourse_level: 1, // recourse_level level 1 is the followup stage
+        },
+      });
+
+      // Insert timeline event record
+      await tx.claimEvent.create({
+        data: {
+          claim_id: claim.id,
+          type: ClaimEventType.FOLLOW_UP_SENT,
+          recourse_level: 1,
+          followup_level: dto.level,
+          description: eventDescription,
+        },
+      });
+
+      return updated;
+    });
+
+    return ResponseHelper.success({
+      message: `${templateLevelName} follow-up sent successfully`,
       data: updatedClaim,
     });
   }

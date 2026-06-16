@@ -618,7 +618,15 @@ export class StopLogService {
         arrival_location: true,
         facility_address: true,
         attachments: true,
-        claim: true,
+        claim: {
+          include: {
+            claim_events: {
+              orderBy: {
+                created_at: 'desc',
+              },
+            },
+          },
+        },
       },
     });
     if (!stoplog) throw new UnauthorizedException('Stop log not found');
@@ -700,6 +708,17 @@ export class StopLogService {
               paid_amount: stoplog.claim.paid_amount,
               sent_at: stoplog.claim.sent_at,
               recipient_email: stoplog.claim.recipient_email,
+              recourse_level: stoplog.claim.recourse_level,
+              followup_count: stoplog.claim.followup_count,
+              followup_due_at: stoplog.claim.followup_due_at,
+              claim_events: stoplog.claim.claim_events.map((event) => ({
+                id: event.id,
+                created_at: event.created_at,
+                type: event.type,
+                recourse_level: event.recourse_level,
+                followup_level: event.followup_level,
+                description: event.description,
+              })),
             }
           : null,
       },

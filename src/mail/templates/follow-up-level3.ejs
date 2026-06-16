@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #334155;
+      background-color: #f8fafc;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 20px auto;
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    }
+    .header {
+      background: linear-gradient(135deg, #b91c1c, #dc2626);
+      color: #ffffff;
+      padding: 30px 24px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    .content {
+      padding: 30px 24px;
+      line-height: 1.6;
+    }
+    .claim-details {
+      background-color: #fef2f2;
+      border: 1px solid #fee2e2;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 24px 0;
+    }
+    .claim-details h3 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      color: #991b1b;
+      font-size: 16px;
+      border-bottom: 1px solid #fee2e2;
+      padding-bottom: 8px;
+    }
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+    .detail-row:last-child {
+      margin-bottom: 0;
+    }
+    .detail-label {
+      font-weight: 600;
+      color: #991b1b;
+    }
+    .detail-value {
+      color: #450a0a;
+    }
+    .amount {
+      font-size: 18px;
+      font-weight: 700;
+      color: #dc2626;
+    }
+    .warning-text {
+      color: #b91c1c;
+      font-weight: 600;
+      background-color: #fef2f2;
+      border-left: 4px solid #dc2626;
+      padding: 12px;
+      margin: 20px 0;
+      font-size: 14px;
+      border-radius: 0 8px 8px 0;
+    }
+    .footer {
+      background-color: #f8fafc;
+      padding: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: #94a3b8;
+      border-top: 1px solid #e2e8f0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>FINAL NOTICE: Outstanding Detention Payment</h1>
+    </div>
+    <div class="content">
+      <p>Dear <%= brokerName || 'Broker / Billing Department' %>,</p>
+      
+      <p>This is the <strong>FINAL NOTICE</strong> regarding the unpaid detention amount for the load detailed below. Despite multiple previous reminders, the invoice remains unpaid and is now severely past due.</p>
+      
+      <div class="warning-text">
+        <strong>ACTION REQUIRED IMMEDIATELY:</strong> If payment is not received or resolved within 48 hours, we will be forced to escalate this matter to legal counsel and refer the account to collections.
+      </div>
+      
+      <div class="claim-details">
+        <h3>Overdue Claim Information</h3>
+        <div class="detail-row">
+          <span class="detail-label">Driver Name:</span>
+          <span class="detail-value"><%= driverName %></span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Facility Name:</span>
+          <span class="detail-value"><%= facilityName %></span>
+        </div>
+        <% if (loadNumber) { %>
+        <div class="detail-row">
+          <span class="detail-label">Load Number:</span>
+          <span class="detail-value"><%= loadNumber %></span>
+        </div>
+        <% } %>
+        <% if (bolNumber) { %>
+        <div class="detail-row">
+          <span class="detail-label">BOL Number:</span>
+          <span class="detail-value"><%= bolNumber %></span>
+        </div>
+        <% } %>
+        <div class="detail-row" style="margin-top: 16px; padding-top: 12px; border-top: 1px dashed #fca5a5;">
+          <span class="detail-label" style="font-size: 16px;">Total Overdue Amount:</span>
+          <span class="amount">$<%= Number(amount).toFixed(2) %></span>
+        </div>
+      </div>
+      
+      <p>Please send immediate payment confirmation or check numbers to settle this debt. Reply to this email immediately to prevent legal referral.</p>
+      
+      <p>We await your prompt response.</p>
+      
+      <p style="margin-top: 30px;">Sincerely,<br><strong style="color: #b91c1c;"><%= driverName %></strong></p>
+    </div>
+    <div class="footer">
+      <p>Sent automatically via Luke Thompson System on behalf of <%= driverName %>.</p>
+    </div>
+  </div>
+</body>
+</html>

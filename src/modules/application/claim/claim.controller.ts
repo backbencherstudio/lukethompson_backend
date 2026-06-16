@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UseGuards, Body, Param, Patch } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Body, Param, Patch, Post } from '@nestjs/common';
 import { ClaimService } from './claim.service';
 import { QueryClaimDto } from './dto/query-claim.dto';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
@@ -12,6 +12,7 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { MarkPaidDto, MarkDeniedDto } from './dto/update-claim.dto';
+import { SendFollowUpDto } from './dto/send-follow-up.dto';
 
 @ApiTags('Application claim')
 @ApiBearerAuth('user_token')
@@ -122,5 +123,23 @@ export class ClaimController {
     @GetUser('id') user_id: string,
   ) {
     return this.claimService.markDenied(id, dto, user_id);
+  }
+
+  @ApiOperation({
+    summary: 'Send claim follow-up email',
+    description: 'Triggers manual sending of the selected follow-up template. Validates downgrade restrictions and updates claim status and timeline.',
+  })
+  @ApiBody({ type: SendFollowUpDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Follow-up email queued successfully',
+  })
+  @Post(':id/follow-up')
+  sendFollowUp(
+    @Param('id') id: string,
+    @Body() dto: SendFollowUpDto,
+    @GetUser('id') user_id: string,
+  ) {
+    return this.claimService.sendFollowUp(id, dto, user_id);
   }
 }

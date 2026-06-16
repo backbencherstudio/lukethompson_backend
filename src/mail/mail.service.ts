@@ -78,4 +78,27 @@ export class MailService {
       console.log(error);
     }
   }
+
+  async sendClaimFollowUp(params: {
+    to: string;
+    cc?: string[];
+    subject: string;
+    template: string;
+    context: any;
+  }) {
+    try {
+      const from = `${process.env.APP_NAME} <${appConfig().mail.from}>`;
+      await this.queue.add('sendClaimFollowUp', {
+        to: params.to,
+        cc: params.cc,
+        from,
+        subject: params.subject,
+        template: params.template,
+        context: params.context,
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  }
 }
+
