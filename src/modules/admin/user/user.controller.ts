@@ -13,6 +13,12 @@ import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  AdminUserActionResponseDto,
+  AdminUserListResponseDto,
+  AdminUserDetailResponseDto,
+  AdminUserGenericSuccessDto,
+} from './dto/response-user.dto';
 import { Role } from '../../../common/guard/role/role.enum';
 import { Roles } from '../../../common/guard/role/roles.decorator';
 import { RolesGuard } from '../../../common/guard/role/roles.guard';
@@ -26,7 +32,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @ApiResponse({ description: 'Create a user' })
+  @ApiResponse({ status: 201, description: 'Create a user', type: AdminUserActionResponseDto })
   @Post()
   async create(@Body() createUserDto: CreateUserDto) {
     try {
@@ -40,7 +46,7 @@ export class UserController {
     }
   }
 
-  @ApiResponse({ description: 'Get all users' })
+  @ApiResponse({ status: 200, description: 'Get all users', type: AdminUserListResponseDto })
   @Get()
   async findAll(
     @Query() query: { search?: string; type?: string; approved?: string },
@@ -58,7 +64,7 @@ export class UserController {
 
   // approve user
   @Roles(Role.ADMIN)
-  @ApiResponse({ description: 'Approve a user' })
+  @ApiResponse({ status: 200, description: 'Approve a user', type: AdminUserGenericSuccessDto })
   @Post(':id/approve')
   async approve(@Param('id') id: string) {
     try {
@@ -74,7 +80,7 @@ export class UserController {
 
   // reject user
   @Roles(Role.ADMIN)
-  @ApiResponse({ description: 'Reject a user' })
+  @ApiResponse({ status: 200, description: 'Reject a user', type: AdminUserGenericSuccessDto })
   @Post(':id/reject')
   async reject(@Param('id') id: string) {
     try {
@@ -88,7 +94,7 @@ export class UserController {
     }
   }
 
-  @ApiResponse({ description: 'Get a user by id' })
+  @ApiResponse({ status: 200, description: 'Get a user by id', type: AdminUserDetailResponseDto })
   @Get(':id')
   async findOne(@Param('id') id: string) {
     try {

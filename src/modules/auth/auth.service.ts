@@ -15,9 +15,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { UserRepository } from '../../common/repository/user/user.repository';
 import { UcodeRepository } from '../../common/repository/ucode/ucode.repository';
 import { MailService } from '../../mail/mail.service';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateRegisteredUserDto } from './dto/update-user.dto';
 import { NajimStorage } from '../../common/lib/Disk/NajimStorage';
-import { DateHelper } from '../../common/helper/date.helper';
 import { StripePayment } from '../../common/lib/Payment/stripe/StripePayment';
 import {
   ChangePasswordDto,
@@ -48,6 +47,8 @@ export class AuthService {
         email: true,
         avatar: true,
         phone_number: true,
+        rate_per_hour: true,
+        free_wait_time: true,
         type: true,
         created_at: true,
       },
@@ -76,16 +77,16 @@ export class AuthService {
 
   async updateUser(
     userId: string,
-    updateUserDto: UpdateUserDto,
+    UpdateRegisteredUserDto: UpdateRegisteredUserDto,
     avatar?: Express.Multer.File,
   ) {
     const data: any = {};
-    if (updateUserDto.name) {
-      data.name = updateUserDto.name;
+    if (UpdateRegisteredUserDto.name) {
+      data.name = UpdateRegisteredUserDto.name;
     }
 
-    if (updateUserDto.phone_number) {
-      data.phone_number = updateUserDto.phone_number;
+    if (UpdateRegisteredUserDto.phone_number) {
+      data.phone_number = UpdateRegisteredUserDto.phone_number;
     }
 
     if (avatar) {

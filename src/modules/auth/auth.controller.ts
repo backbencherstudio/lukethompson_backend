@@ -35,9 +35,20 @@ import {
   ResetPasswordDto,
   VerifyEmailDto,
 } from './dto/create-auth.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateRegisteredUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GetUser } from './decorators/get-user.decorator';
+import {
+  AuthMeResponseDto,
+  AuthLoginResponseDto,
+  AuthOtpSentResponseDto,
+  AuthVerificationEmailSentResponseDto,
+  AuthUserUpdatedResponseDto,
+  AuthEmailVerifiedResponseDto,
+  AuthOtpValidResponseDto,
+  AuthPasswordUpdatedResponseDto,
+  AuthEmailUpdatedResponseDto,
+} from './dto/response-auth.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -54,22 +65,7 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: 'User details retrieved successfully.',
-    schema: {
-      example: {
-        success: true,
-        message: 'User found successfully',
-        data: {
-          id: 'cl0a1b2c3d4e5f6g7h8i9j0k',
-          name: 'John Doe',
-          email: 'john.doe@example.com',
-          avatar: 'avatar-12345.png',
-          avatar_url: 'http://localhost:2004/storage/avatar/avatar-12345.png',
-          phone_number: '+1234567890',
-          type: 'user',
-          created_at: '2026-06-10T14:32:09.000Z',
-        },
-      },
-    },
+    type: AuthMeResponseDto,
   })
   @UseGuards(JwtAuthGuard)
   @Get('me')
@@ -84,12 +80,7 @@ export class AuthController {
   })
   @ApiCreatedResponse({
     description: 'User registered successfully. OTP sent to email.',
-    schema: {
-      example: {
-        success: true,
-        message: 'We have sent an OTP code to your email',
-      },
-    },
+    type: AuthOtpSentResponseDto,
   })
   @Post('register')
   create(@Body() data: RegisterUserDto) {
@@ -106,26 +97,7 @@ export class AuthController {
     status: 201,
     description:
       'User logged in successfully. Returns access token and user details.',
-    schema: {
-      example: {
-        success: true,
-        message: 'Logged in successfully',
-        authorization: {
-          type: 'bearer',
-          access_token:
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFkbWluQGV4YW1wbGUuY29tIiwic3ViIjoiMSIsImlhdCI6MTY3ODc5OTM4MywiZXhwIjoxNjc4Nzk5MzgzfQ',
-        },
-        user: {
-          id: 'cl0a1b2c3d4e5f6g7h8i9j0k',
-          name: 'John Doe',
-          email: 'john.doe@example.com',
-          avatar: 'avatar-12345.png',
-          phone_number: '+1234567890',
-          created_at: '2026-06-10T14:32:09.000Z',
-          type: 'user',
-        },
-      },
-    },
+    type: AuthLoginResponseDto,
   })
   @UseGuards(LocalAuthGuard)
   @Post('login')
@@ -144,15 +116,10 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     description: 'User updated successfully.',
-    schema: {
-      example: {
-        success: true,
-        message: 'User updated successfully',
-      },
-    },
+    type: AuthUserUpdatedResponseDto,
   })
   @ApiConsumes('multipart/form-data')
-  @ApiBody({ type: UpdateUserDto })
+  @ApiBody({ type: UpdateRegisteredUserDto })
   @ApiBearerAuth('user_token')
   @ApiBearerAuth('admin_token')
   @UseGuards(JwtAuthGuard)
@@ -175,7 +142,7 @@ export class AuthController {
   )
   updateUser(
     @Req() req: Request,
-    @Body() data: UpdateUserDto,
+    @Body() data: UpdateRegisteredUserDto,
     @UploadedFile() avatar: Express.Multer.File,
   ) {
     return this.authService.updateUser(req?.user?.id, data, avatar);
@@ -189,12 +156,7 @@ export class AuthController {
   @ApiResponse({
     status: 201,
     description: 'Password reset link sent successfully.',
-    schema: {
-      example: {
-        success: true,
-        message: 'We have sent an OTP code to your email',
-      },
-    },
+    type: AuthOtpSentResponseDto,
   })
   @Post('forgot-password')
   forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
@@ -209,12 +171,7 @@ export class AuthController {
   @ApiResponse({
     status: 201,
     description: 'Email verified successfully.',
-    schema: {
-      example: {
-        success: true,
-        message: 'Email verified successfully',
-      },
-    },
+    type: AuthEmailVerifiedResponseDto,
   })
   @Post('verify-email')
   async verifyEmail(@Body() data: VerifyEmailDto) {
@@ -229,12 +186,7 @@ export class AuthController {
   @ApiResponse({
     status: 201,
     description: 'Verification email sent successfully.',
-    schema: {
-      example: {
-        success: true,
-        message: 'We have sent a verification code to your email',
-      },
-    },
+    type: AuthVerificationEmailSentResponseDto,
   })
   @Post('resend-verification-email')
   async resendVerificationEmail(
@@ -253,12 +205,7 @@ export class AuthController {
   @ApiResponse({
     status: 201,
     description: 'OTP validity checked successfully.',
-    schema: {
-      example: {
-        success: true,
-        message: 'OTP code is valid',
-      },
-    },
+    type: AuthOtpValidResponseDto,
   })
   @Post('check-otp')
   checkOTPValidity(@Body() data: VerifyEmailDto) {
@@ -268,17 +215,12 @@ export class AuthController {
   @ApiOperation({
     summary: 'Reset password using OTP',
     description:
-      'Resets the user\'s password. Validates the recovery OTP code and applies the new password. Deletes the OTP code on success.',
+      "Resets the user's password. Validates the recovery OTP code and applies the new password. Deletes the OTP code on success.",
   })
   @ApiResponse({
     status: 201,
     description: 'Password updated successfully.',
-    schema: {
-      example: {
-        success: true,
-        message: 'Password updated successfully',
-      },
-    },
+    type: AuthPasswordUpdatedResponseDto,
   })
   @Post('reset-password')
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
@@ -293,12 +235,7 @@ export class AuthController {
   @ApiResponse({
     status: 201,
     description: 'Password updated successfully.',
-    schema: {
-      example: {
-        success: true,
-        message: 'Password updated successfully',
-      },
-    },
+    type: AuthPasswordUpdatedResponseDto,
   })
   @ApiBearerAuth('user_token')
   @ApiBearerAuth('admin_token')
@@ -324,12 +261,7 @@ export class AuthController {
   @ApiResponse({
     status: 201,
     description: 'Request email change OTP code sent successfully.',
-    schema: {
-      example: {
-        success: true,
-        message: 'We have sent an OTP code to your email',
-      },
-    },
+    type: AuthOtpSentResponseDto,
   })
   @UseGuards(JwtAuthGuard)
   @Post('request-email-change')
@@ -347,19 +279,14 @@ export class AuthController {
   @ApiOperation({
     summary: 'Confirm email address change',
     description:
-      'Confirms the email address change request. Validates the OTP verification token sent to the new email address. If valid, updates the user\'s email to the new address and deletes the OTP code. Requires JWT authorization.',
+      "Confirms the email address change request. Validates the OTP verification token sent to the new email address. If valid, updates the user's email to the new address and deletes the OTP code. Requires JWT authorization.",
   })
   @ApiBearerAuth('user_token')
   @ApiBearerAuth('admin_token')
   @ApiResponse({
     status: 201,
     description: 'Email updated successfully.',
-    schema: {
-      example: {
-        success: true,
-        message: 'Email updated successfully',
-      },
-    },
+    type: AuthEmailUpdatedResponseDto,
   })
   @UseGuards(JwtAuthGuard)
   @Post('change-email')
