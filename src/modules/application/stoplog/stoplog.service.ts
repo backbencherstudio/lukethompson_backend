@@ -243,6 +243,105 @@ export class StopLogService {
       throw new BadRequestException('Invalid stop log step');
     }
 
+    // 1. Fetch active log first (outside transaction, for validation and optimization)
+    const activeLog = dto.id
+      ? await this.prisma.stopLog.findUnique({
+          where: { id: dto.id },
+          select: {
+            id: true,
+            arrived_at: true,
+            docked_at: true,
+            completed_at: true,
+            departed_at: true,
+            bol_number: true,
+            user_id: true,
+            _count: {
+              select: {
+                attachments: true,
+              },
+            },
+          },
+        })
+      : await this.prisma.stopLog.findFirst({
+          where: { user_id, departed_at: null },
+          orderBy: { created_at: 'desc' },
+          select: {
+            id: true,
+            arrived_at: true,
+            docked_at: true,
+            completed_at: true,
+            departed_at: true,
+            bol_number: true,
+            user_id: true,
+            _count: {
+              select: {
+                attachments: true,
+              },
+            },
+          },
+        });
+
+    // 2. Validate ownership
+    if (activeLog && activeLog.user_id !== user_id) {
+      throw new UnauthorizedException('Unauthorized access to stop log');
+    }
+
+    // 3. Check if departure has occurred or is occurring
+    const isDepartureOrDeparted =
+      step === LogStopStep.DEPARTURE_TIME || Boolean(activeLog?.departed_at);
+
+    // 4. Enforce that bol_number and attachments are ONLY allowed during/after departure
+    const hasNewAttachments = dto.attachments && dto.attachments.length > 0;
+    if (!isDepartureOrDeparted) {
+      if (hasNewAttachments || bol_number) {
+        throw new BadRequestException(
+          'BOL number and attachments can only be provided during or after departure',
+        );
+      }
+    }
+
+    // 5. Enforce that attachment is MANDATORY for departure/departed logs
+    if (isDepartureOrDeparted) {
+      const totalAttachmentsCount =
+        (activeLog?._count?.attachments || 0) +
+        (hasNewAttachments ? dto.attachments.length : 0);
+      if (totalAttachmentsCount === 0) {
+        throw new BadRequestException(
+          'At least one attachment is mandatory for departure',
+        );
+      }
+    }
+
+    // 6. Validate step sequence (if not already departed)
+    if (step === LogStopStep.ARRIVAL_TIME) {
+      if (activeLog) {
+        throw new BadRequestException(
+          'An active stop log is already in progress',
+        );
+      }
+    } else {
+      if (!activeLog) {
+        throw new BadRequestException(
+          'No active stop log found. Start with Arrival.',
+        );
+      }
+      // If the log is already departed, we only allow updating bol_number and attachments
+      // If it is not yet departed, we enforce the step sequence
+      if (
+        !activeLog.departed_at &&
+        this.getCurrentStep(activeLog) !== config.prev
+      ) {
+        throw new BadRequestException(
+          `Invalid sequence. Next step should be: ${config.prev}`,
+        );
+      }
+    }
+
+    // 7. Upload attachments now that validation has passed
+    const uploadedAttachments = await this.uploadStopLogAttachments(
+      dto.attachments,
+    );
+
     const stopLogSelect = {
       id: true,
       user_id: true,
@@ -270,10 +369,6 @@ export class StopLogService {
       },
     } satisfies Prisma.StopLogSelect;
 
-    const uploadedAttachments = await this.uploadStopLogAttachments(
-      dto.attachments,
-    );
-
     try {
       return await this.prisma.$transaction(async (tx) => {
         const user = await tx.user.findUnique({
@@ -285,57 +380,10 @@ export class StopLogService {
           throw new UnauthorizedException('User not found');
         }
 
-        const activeLog = dto.id
-          ? await tx.stopLog.findUnique({
-              where: { id: dto.id },
-              select: {
-                id: true,
-                arrived_at: true,
-                docked_at: true,
-                completed_at: true,
-                departed_at: true,
-                bol_number: true,
-                user_id: true,
-                _count: {
-                  select: {
-                    attachments: true,
-                  },
-                },
-              },
-            })
-          : await tx.stopLog.findFirst({
-              where: { user_id, departed_at: null },
-              orderBy: { created_at: 'desc' },
-              select: {
-                id: true,
-                arrived_at: true,
-                docked_at: true,
-                completed_at: true,
-                departed_at: true,
-                bol_number: true,
-                user_id: true,
-                _count: {
-                  select: {
-                    attachments: true,
-                  },
-                },
-              },
-            });
-
-        if (activeLog && activeLog.user_id !== user_id) {
-          throw new UnauthorizedException('Unauthorized access to stop log');
-        }
-
         const now = new Date();
-
         const hasDepartureTime =
           step === LogStopStep.DEPARTURE_TIME ||
           Boolean(activeLog?.departed_at);
-        const currentBolNumber = bol_number?.trim() || activeLog?.bol_number;
-        const hasBolNumber = Boolean(currentBolNumber);
-        const totalAttachmentsCount =
-          (activeLog?._count?.attachments || 0) + uploadedAttachments.length;
-        const hasAttachments = totalAttachmentsCount > 0;
 
         let determineStatus: PrismaStopLogStatus = PrismaStopLogStatus.ACTIVE;
         if (hasDepartureTime) {
@@ -345,12 +393,6 @@ export class StopLogService {
         const stoplog =
           step === LogStopStep.ARRIVAL_TIME
             ? await (async () => {
-                if (activeLog) {
-                  throw new UnauthorizedException(
-                    'An active stop log is already in progress',
-                  );
-                }
-
                 const arrivalLocationId =
                   dto.location &&
                   Boolean(
@@ -403,18 +445,6 @@ export class StopLogService {
                 });
               })()
             : await (async () => {
-                if (!activeLog) {
-                  throw new UnauthorizedException(
-                    'No active stop log found. Start with Arrival.',
-                  );
-                }
-
-                if (this.getCurrentStep(activeLog) !== config.prev) {
-                  throw new UnauthorizedException(
-                    `Invalid sequence. Next step should be: ${config.prev}`,
-                  );
-                }
-
                 const facilityAddressId =
                   dto.location &&
                   Boolean(
@@ -428,8 +458,10 @@ export class StopLogService {
                     : undefined;
 
                 const updateData: Prisma.StopLogUpdateInput = {
-                  [config.field]: now,
-                  bol_number: bol_number?.trim() || undefined,
+                  ...(!activeLog.departed_at && { [config.field]: now }),
+                  ...(bol_number !== undefined && {
+                    bol_number: bol_number.trim() || null,
+                  }),
                   status: determineStatus,
                   attachments: uploadedAttachments.length
                     ? {
@@ -450,10 +482,11 @@ export class StopLogService {
                 });
               })();
 
+        // Calculate and upsert Claim only if completed and has attachments
+        const hasAttachments = stoplog.attachments.length > 0;
         if (
           stoplog.status === PrismaStopLogStatus.COMPLETED &&
           hasAttachments &&
-          hasBolNumber &&
           stoplog.departed_at &&
           stoplog.user_id &&
           stoplog.shipper_facility_id

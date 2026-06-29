@@ -47,7 +47,13 @@ export class StopLogController {
   @ApiOperation({
     summary: 'Record or update a stop log step',
     description:
-      'Drives the stop log state machine by recording steps chronologically: arrival_time, dock_in_time, completed_time, and departure_time. Supports uploading up to 10 files as attachments (stored in cloud storage like AWS S3 or MinIO). Dynamically creates/updates shipper facility data. Requires a valid JWT token.',
+      'Drives the stop log state machine chronologically: arrival_time -> dock_in_time -> completed_time -> departure_time.\n\n' +
+      '**Validation Rules:**\n' +
+      '- `bol_number` and `attachments` can ONLY be provided during the `departure_time` step or after the stop log has already departed.\n' +
+      '- Providing `attachments` or `bol_number` in any other step will result in a `400 Bad Request` error.\n' +
+      '- At least one attachment is **mandatory** during or after departure (the request must contain a new attachment or the log must have an existing one). The `bol_number` is optional.\n\n' +
+      '**Claim Generation:**\n' +
+      '- Once the stop log is completed (departed) and has at least one attachment, a draft claim (`DRAFT`) is automatically generated/updated based on the waiting hours (total waiting time minus the driver\'s free wait time) and the driver\'s hourly rate.',
   })
   @ApiResponse({
     status: 200,
