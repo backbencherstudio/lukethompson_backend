@@ -57,7 +57,7 @@ async function bootstrap() {
 
   // storage setup
   NajimStorage.config({
-    driver: 's3',
+    driver: appConfig().storageDriver as any,
     connection: {
       rootUrl: appConfig().storageUrl.rootUrl,
       publicUrl: appConfig().storageUrl.rootUrlPublic,
@@ -67,7 +67,7 @@ async function bootstrap() {
       awsSecretAccessKey: appConfig().fileSystems.s3.secret,
       awsDefaultRegion: appConfig().fileSystems.s3.region,
       awsEndpoint: appConfig().fileSystems.s3.endpoint,
-      minio: true,
+      minio: appConfig().fileSystems.s3.forcePathStyle,
       // google cloud storage
       gcpProjectId: appConfig().fileSystems.gcs.projectId,
       gcpKeyFile: appConfig().fileSystems.gcs.keyFile,

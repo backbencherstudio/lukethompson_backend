@@ -1,6 +1,6 @@
 import { StorageClass } from './StorageClass';
 import { LocalAdapter } from './drivers/LocalAdapter';
-import { DiskOption, DiskType } from './Option';
+import { DiskOption, DiskType, UrlOptions } from './Option';
 import { S3Adapter } from './drivers/S3Adapter';
 import { IStorage } from './drivers/iStorage';
 import { StringHelper } from '../../helper/string.helper';
@@ -54,9 +54,9 @@ export class NajimStorage {
    * @param key
    * @returns
    */
-  public static url(key: string): string {
+  public static url(key: string, options?: UrlOptions): string {
     const disk = this.storageDisk();
-    return disk.url(key);
+    return disk.url(key, options);
   }
 
   public static async isExists(key: string): Promise<boolean> {

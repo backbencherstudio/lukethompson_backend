@@ -10,7 +10,6 @@ export enum QueryClaimStatus {
   DENIED = 'DENIED',
 }
 
-
 export class QueryClaimDto {
   @ApiPropertyOptional({
     example: 'cl0b7e6d5f4g3h2i1j0k9l8m',

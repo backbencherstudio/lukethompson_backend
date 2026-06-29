@@ -134,8 +134,9 @@ export class UserService {
 
       // add avatar url to user
       if (user.avatar) {
-        user['avatar_url'] = NajimStorage.url(
+        user['avatar'] = NajimStorage.url(
           appConfig().storageUrl.avatar + user.avatar,
+          { signed: true },
         );
       }
 

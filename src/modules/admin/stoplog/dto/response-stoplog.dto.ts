@@ -11,13 +11,25 @@ export class AdminStopLogItemDto {
   @ApiProperty({ example: '2026-06-28T05:27:41Z' })
   arrived_at: string;
 
-  @ApiProperty({ example: '2026-06-28T05:27:41Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-06-28T05:27:41Z',
+    required: false,
+    nullable: true,
+  })
   docked_at?: string;
 
-  @ApiProperty({ example: '2026-06-28T05:27:41Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-06-28T05:27:41Z',
+    required: false,
+    nullable: true,
+  })
   completed_at?: string;
 
-  @ApiProperty({ example: '2026-06-28T05:27:41Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-06-28T05:27:41Z',
+    required: false,
+    nullable: true,
+  })
   departed_at?: string;
 
   @ApiProperty({ example: '200.00' })
@@ -25,7 +37,11 @@ export class AdminStopLogItemDto {
 }
 
 export class AdminStopLogMetaDto {
-  @ApiProperty({ example: 'cl0a1b2c3d4e5f6g7h8i9j0k', required: false, nullable: true })
+  @ApiProperty({
+    example: 'cl0a1b2c3d4e5f6g7h8i9j0k',
+    required: false,
+    nullable: true,
+  })
   next_cursor?: string;
 
   @ApiProperty({ example: 10 })

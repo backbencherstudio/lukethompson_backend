@@ -15,4 +15,3 @@ import { ShipperModule } from './shipper/shipper.module';
   ],
 })
 export class ApplicationModule {}
-

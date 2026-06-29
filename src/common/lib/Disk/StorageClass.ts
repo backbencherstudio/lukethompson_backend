@@ -1,4 +1,6 @@
 import { IStorage } from './drivers/iStorage';
+import { UrlOptions } from './Option';
+
 export class StorageClass {
   protected adapter: IStorage;
 
@@ -20,8 +22,8 @@ export class StorageClass {
    * @param key
    * @returns
    */
-  public url(key: string) {
-    return this.adapter.url(key);
+  public url(key: string, options?: UrlOptions) {
+    return this.adapter.url(key, options);
   }
 
   /**

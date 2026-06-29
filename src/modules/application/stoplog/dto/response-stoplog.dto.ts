@@ -26,13 +26,25 @@ export class StopLogStepDataDto {
   @ApiProperty({ example: '2026-06-28T05:27:41Z' })
   arrived_at: string;
 
-  @ApiProperty({ example: '2026-06-28T05:27:41Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-06-28T05:27:41Z',
+    required: false,
+    nullable: true,
+  })
   docked_at?: string;
 
-  @ApiProperty({ example: '2026-06-28T05:27:41Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-06-28T05:27:41Z',
+    required: false,
+    nullable: true,
+  })
   completed_at?: string;
 
-  @ApiProperty({ example: '2026-06-28T05:27:41Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-06-28T05:27:41Z',
+    required: false,
+    nullable: true,
+  })
   departed_at?: string;
 
   @ApiProperty({ type: Object, required: false, nullable: true })
@@ -67,7 +79,11 @@ export class StopLogListItemDto {
   @ApiProperty({ example: 'Acme Warehouse' })
   facility_name: string;
 
-  @ApiProperty({ example: 'cl0a1b2c3d4e5f6g7h8i9j1k', required: false, nullable: true })
+  @ApiProperty({
+    example: 'cl0a1b2c3d4e5f6g7h8i9j1k',
+    required: false,
+    nullable: true,
+  })
   shipper_facility_id?: string;
 
   @ApiProperty({ example: '2026-06-28T05:27:41Z' })
@@ -86,7 +102,11 @@ export class StopLogListMetaFiltersDto {
 }
 
 export class StopLogListMetaDto {
-  @ApiProperty({ example: 'cl0a1b2c3d4e5f6g7h8i9j0k', required: false, nullable: true })
+  @ApiProperty({
+    example: 'cl0a1b2c3d4e5f6g7h8i9j0k',
+    required: false,
+    nullable: true,
+  })
   next_cursor?: string;
 
   @ApiProperty({ example: 10 })
@@ -175,7 +195,11 @@ export class StopLogHomeResponseDto {
 
 // --- Reports Response ---
 export class StopLogWorstStopDto {
-  @ApiProperty({ example: 'Cold Storage Solutions', required: false, nullable: true })
+  @ApiProperty({
+    example: 'Cold Storage Solutions',
+    required: false,
+    nullable: true,
+  })
   facility_name?: string;
 
   @ApiProperty({ example: '3.00' })
@@ -280,13 +304,25 @@ export class StopLogDetailInProgressDto {
   @ApiProperty({ example: '2026-06-28T05:27:41Z' })
   arrived_at: string;
 
-  @ApiProperty({ example: '2026-06-28T05:27:41Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-06-28T05:27:41Z',
+    required: false,
+    nullable: true,
+  })
   docked_at?: string;
 
-  @ApiProperty({ example: '2026-06-28T05:27:41Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-06-28T05:27:41Z',
+    required: false,
+    nullable: true,
+  })
   completed_at?: string;
 
-  @ApiProperty({ example: '2026-06-28T05:27:41Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-06-28T05:27:41Z',
+    required: false,
+    nullable: true,
+  })
   departed_at?: string;
 
   @ApiProperty({ example: 'arrival_time' })

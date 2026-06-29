@@ -13,7 +13,9 @@ export class AuthMeUserDto {
   @ApiProperty({ example: 'avatar-12345.png' })
   avatar: string;
 
-  @ApiProperty({ example: 'http://localhost:2004/storage/avatar/avatar-12345.png' })
+  @ApiProperty({
+    example: 'http://localhost:2004/storage/avatar/avatar-12345.png',
+  })
   avatar_url: string;
 
   @ApiProperty({ example: '+1234567890' })
@@ -41,7 +43,9 @@ export class AuthLoginAuthorizationDto {
   @ApiProperty({ example: 'bearer' })
   type: string;
 
-  @ApiProperty({ example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6...' })
+  @ApiProperty({
+    example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6...',
+  })
   access_token: string;
 }
 

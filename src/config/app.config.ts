@@ -7,16 +7,19 @@ export default () => ({
     port: parseInt(process.env.PORT, 10) || 3000,
   },
 
+  storageDriver: process.env.STORAGE_DRIVER || 'local',
+
   fileSystems: {
     public: {},
     s3: {
       driver: 's3',
       key: process.env.AWS_ACCESS_KEY_ID,
       secret: process.env.AWS_SECRET_ACCESS_KEY,
-      region: process.env.AWS_DEFAULT_REGION,
-      bucket: process.env.AWS_BUCKET,
+      region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION,
+      bucket: process.env.AWS_S3_BUCKET || process.env.AWS_BUCKET,
       url: process.env.AWS_URL,
-      endpoint: process.env.AWS_ENDPOINT,
+      endpoint: process.env.AWS_S3_ENDPOINT || process.env.AWS_ENDPOINT,
+      forcePathStyle: process.env.AWS_S3_FORCE_PATH_STYLE === 'true',
     },
     gcs: {
       driver: 'gcs',
@@ -84,7 +87,7 @@ export default () => ({
     package: '/package',
     destination: '/destination',
     blog: '/blog',
-    avatar: '/avatar',
+    avatar: 'avatar',
     websiteInfo: '/website-info',
     // chat
     attachment: '/attachment',

@@ -4,7 +4,8 @@ import { IsNotEmpty, IsNumber, Min, Max } from 'class-validator';
 export class SendFollowUpDto {
   @ApiProperty({
     example: 1,
-    description: 'The escalation level: 1 (Professional Reminder), 2 (Firm Notice), 3 (Final Notice)',
+    description:
+      'The escalation level: 1 (Professional Reminder), 2 (Firm Notice), 3 (Final Notice)',
     enum: [1, 2, 3],
   })
   @IsNotEmpty()

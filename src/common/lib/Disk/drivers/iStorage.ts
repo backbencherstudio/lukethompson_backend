@@ -1,3 +1,5 @@
+import { UrlOptions } from '../Option';
+
 /**
  * IAdapter interface
  */
@@ -18,7 +20,7 @@ export interface IStorage {
    * get file url
    * @param key
    */
-  url(key: string): string;
+  url(key: string, options?: UrlOptions): string;
 
   /**
    * put data

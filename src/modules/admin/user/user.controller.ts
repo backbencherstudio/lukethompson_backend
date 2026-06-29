@@ -32,7 +32,11 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @ApiResponse({ status: 201, description: 'Create a user', type: AdminUserActionResponseDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Create a user',
+    type: AdminUserActionResponseDto,
+  })
   @Post()
   async create(@Body() createUserDto: CreateUserDto) {
     try {
@@ -46,7 +50,11 @@ export class UserController {
     }
   }
 
-  @ApiResponse({ status: 200, description: 'Get all users', type: AdminUserListResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Get all users',
+    type: AdminUserListResponseDto,
+  })
   @Get()
   async findAll(
     @Query() query: { search?: string; type?: string; approved?: string },
@@ -64,7 +72,11 @@ export class UserController {
 
   // approve user
   @Roles(Role.ADMIN)
-  @ApiResponse({ status: 200, description: 'Approve a user', type: AdminUserGenericSuccessDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Approve a user',
+    type: AdminUserGenericSuccessDto,
+  })
   @Post(':id/approve')
   async approve(@Param('id') id: string) {
     try {
@@ -80,7 +92,11 @@ export class UserController {
 
   // reject user
   @Roles(Role.ADMIN)
-  @ApiResponse({ status: 200, description: 'Reject a user', type: AdminUserGenericSuccessDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Reject a user',
+    type: AdminUserGenericSuccessDto,
+  })
   @Post(':id/reject')
   async reject(@Param('id') id: string) {
     try {
@@ -94,7 +110,11 @@ export class UserController {
     }
   }
 
-  @ApiResponse({ status: 200, description: 'Get a user by id', type: AdminUserDetailResponseDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Get a user by id',
+    type: AdminUserDetailResponseDto,
+  })
   @Get(':id')
   async findOne(@Param('id') id: string) {
     try {

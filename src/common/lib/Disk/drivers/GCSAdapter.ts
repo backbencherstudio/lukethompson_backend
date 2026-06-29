@@ -1,6 +1,6 @@
 import { Storage, Bucket } from '@google-cloud/storage';
 import { IStorage } from './iStorage';
-import { DiskOption } from '../Option';
+import { DiskOption, UrlOptions } from '../Option';
 
 export class GCSAdapter implements IStorage {
   private _config: DiskOption;
@@ -22,7 +22,7 @@ export class GCSAdapter implements IStorage {
    * Returns the public URL of the object.
    * @param key
    */
-  url(key: string): string {
+  url(key: string, options?: UrlOptions): string {
     if (this._config.connection.gcpApiEndpoint) {
       // If using custom endpoint or emulator
       return `${this._config.connection.gcpApiEndpoint}/${this._config.connection.gcpBucket}/${key}`;

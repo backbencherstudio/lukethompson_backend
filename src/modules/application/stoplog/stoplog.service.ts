@@ -460,8 +460,14 @@ export class StopLogService {
         ) {
           const arrived = new Date(stoplog.arrived_at).getTime();
           const departed = new Date(stoplog.departed_at).getTime();
-          const totalTime = Math.max(0, (departed - arrived) / (1000 * 60 * 60));
-          const payableTime = Math.max(0, totalTime - (user.free_wait_time || 0));
+          const totalTime = Math.max(
+            0,
+            (departed - arrived) / (1000 * 60 * 60),
+          );
+          const payableTime = Math.max(
+            0,
+            totalTime - (user.free_wait_time || 0),
+          );
           const totalAmount = payableTime * (user.rate_per_hour || 0);
 
           await tx.claim.upsert({

@@ -44,3 +44,8 @@ export type DiskOption = {
     gcpBucket?: string;
   };
 };
+
+export type UrlOptions = {
+  signed?: boolean;
+  expires?: number;
+};

@@ -1,4 +1,13 @@
-import { Controller, Get, Query, UseGuards, Body, Param, Patch, Post } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Query,
+  UseGuards,
+  Body,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { ClaimService } from './claim.service';
 import { QueryClaimDto } from './dto/query-claim.dto';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
@@ -36,16 +45,14 @@ export class ClaimController {
     type: ClaimListResponseDto,
   })
   @Get()
-  getAllClaims(
-    @Query() query: QueryClaimDto,
-    @GetUser('id') user_id: string,
-  ) {
+  getAllClaims(@Query() query: QueryClaimDto, @GetUser('id') user_id: string) {
     return this.claimService.getAllClaims(query, user_id);
   }
 
   @ApiOperation({
     summary: 'Mark a claim as paid',
-    description: 'Allows marking a claim as paid and specifying the paid amount.',
+    description:
+      'Allows marking a claim as paid and specifying the paid amount.',
   })
   @ApiBody({ type: MarkPaidDto })
   @ApiResponse({
@@ -64,7 +71,8 @@ export class ClaimController {
 
   @ApiOperation({
     summary: 'Mark a claim as denied / uncollectable',
-    description: 'Allows marking a claim as denied and specifying denial details.',
+    description:
+      'Allows marking a claim as denied and specifying denial details.',
   })
   @ApiBody({ type: MarkDeniedDto })
   @ApiResponse({
@@ -83,7 +91,8 @@ export class ClaimController {
 
   @ApiOperation({
     summary: 'Send claim follow-up email',
-    description: 'Triggers manual sending of the selected follow-up template. Validates downgrade restrictions and updates claim status and timeline.',
+    description:
+      'Triggers manual sending of the selected follow-up template. Validates downgrade restrictions and updates claim status and timeline.',
   })
   @ApiBody({ type: SendFollowUpDto })
   @ApiResponse({

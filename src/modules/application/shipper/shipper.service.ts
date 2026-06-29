@@ -9,7 +9,12 @@ export class ShipperService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getAllShippers(query: QueryShipperDto) {
-    const { cursor, limit = 10, search, status = QueryShipperStatus.ALL } = query;
+    const {
+      cursor,
+      limit = 10,
+      search,
+      status = QueryShipperStatus.ALL,
+    } = query;
 
     const where: Prisma.ShipperFacilityWhereInput = {};
 
@@ -58,9 +63,10 @@ export class ShipperService {
         let totalDays = 0;
         paidClaims.forEach((c) => {
           const paidTime = c.paid_at ? new Date(c.paid_at).getTime() : 0;
-          const startTime = (c.sent_at ?? c.created_at)
-            ? new Date(c.sent_at ?? c.created_at).getTime()
-            : 0;
+          const startTime =
+            (c.sent_at ?? c.created_at)
+              ? new Date(c.sent_at ?? c.created_at).getTime()
+              : 0;
           const diffDays = Math.max(
             0,
             (paidTime - startTime) / (1000 * 60 * 60 * 24),
@@ -197,7 +203,9 @@ export class ShipperService {
     const total_claims_submitted = claims.length;
     const paidClaims = claims.filter((c) => c.status === ClaimStatus.PAID);
     const total_paid = paidClaims.length;
-    const total_denied = claims.filter((c) => c.status === ClaimStatus.DENIED).length;
+    const total_denied = claims.filter(
+      (c) => c.status === ClaimStatus.DENIED,
+    ).length;
 
     // calculate avg_pay_days
     let avg_pay_days: number | null = null;
@@ -205,9 +213,10 @@ export class ShipperService {
       let totalDays = 0;
       paidClaims.forEach((c) => {
         const paidTime = c.paid_at ? new Date(c.paid_at).getTime() : 0;
-        const startTime = (c.sent_at ?? c.created_at)
-          ? new Date(c.sent_at ?? c.created_at).getTime()
-          : 0;
+        const startTime =
+          (c.sent_at ?? c.created_at)
+            ? new Date(c.sent_at ?? c.created_at).getTime()
+            : 0;
         const diffDays = Math.max(
           0,
           (paidTime - startTime) / (1000 * 60 * 60 * 24),

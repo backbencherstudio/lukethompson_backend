@@ -1,7 +1,7 @@
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
 import * as path from 'path';
-import { DiskOption } from '../Option';
+import { DiskOption, UrlOptions } from '../Option';
 import { IStorage } from './iStorage';
 
 /**
@@ -19,7 +19,7 @@ export class LocalAdapter implements IStorage {
    * @param key
    * @returns
    */
-  url(key: string): string {
+  url(key: string, options?: UrlOptions): string {
     return `${process.env.APP_URL}${this._config.connection.publicUrl}/${key}`;
   }
 

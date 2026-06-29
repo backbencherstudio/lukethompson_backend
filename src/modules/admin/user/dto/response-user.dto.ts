@@ -20,7 +20,11 @@ export class AdminUserDto {
   @ApiProperty({ example: 'user' })
   type: string;
 
-  @ApiProperty({ example: '2026-06-28T05:27:41Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-06-28T05:27:41Z',
+    required: false,
+    nullable: true,
+  })
   approved_at?: string;
 
   @ApiProperty({ example: '2026-06-28T05:27:41Z' })
@@ -32,7 +36,11 @@ export class AdminUserDto {
   @ApiProperty({ example: 'cus_123456789', required: false, nullable: true })
   billing_id?: string;
 
-  @ApiProperty({ example: 'http://localhost:2004/storage/avatar/avatar-12345.png', required: false, nullable: true })
+  @ApiProperty({
+    example: 'http://localhost:2004/storage/avatar/avatar-12345.png',
+    required: false,
+    nullable: true,
+  })
   avatar_url?: string;
 }
 

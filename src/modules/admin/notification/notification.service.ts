@@ -69,12 +69,14 @@ export class NotificationService {
           if (notification.sender && notification.sender.avatar) {
             notification.sender['avatar_url'] = NajimStorage.url(
               appConfig().storageUrl.avatar + notification.sender.avatar,
+              { signed: true },
             );
           }
 
           if (notification.receiver && notification.receiver.avatar) {
             notification.receiver['avatar_url'] = NajimStorage.url(
               appConfig().storageUrl.avatar + notification.receiver.avatar,
+              { signed: true },
             );
           }
         }

@@ -1,6 +1,6 @@
 import * as AWS from 'aws-sdk';
 import { IStorage } from './iStorage';
-import { DiskOption } from '../Option';
+import { DiskOption, UrlOptions } from '../Option';
 
 /**
  * S3Adapter for s3 bucket storage
@@ -38,7 +38,20 @@ export class S3Adapter implements IStorage {
    * @returns
    */
 
-  url(key: string): string {
+  url(key: string, options?: UrlOptions): string {
+    if (options?.signed) {
+      try {
+        const params = {
+          Bucket: this._config.connection.awsBucket,
+          Key: key,
+          Expires: options.expires ?? 604800, // 7 days (maximum expiration for AWS Signature Version 4)
+        };
+        return this.s3.getSignedUrl('getObject', params);
+      } catch (error) {
+        // Fallback to direct URL if signing fails
+      }
+    }
+
     if (this._config.connection.minio) {
       return `${this._config.connection.awsEndpoint}/${this._config.connection.awsBucket}/${key}`;
     }

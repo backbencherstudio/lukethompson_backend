@@ -63,7 +63,8 @@ export enum LogStopStep {
 export class PutStopLogDto {
   @ApiPropertyOptional({
     example: 'cl0a1b2c3d4e5f6g7h8i9j0k',
-    description: 'Existing stop log id to update (required for steps other than arrival_time).',
+    description:
+      'Existing stop log id to update (required for steps other than arrival_time).',
   })
   @IsString()
   @IsOptional()

@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ResponseHelper } from 'src/common/helper/response.helper';
 import { QueryClaimDto, QueryClaimStatus } from './dto/query-claim.dto';
@@ -67,70 +71,72 @@ export class ClaimService {
     nextWeekStart.setDate(nextWeekStart.getDate() + 7);
 
     // Parallelize all database queries for maximum performance
-    const [data, statusGroups, pendingAggregate, settledAggregate] = await Promise.all([
-      // 1. Fetch paginated claims data
-      this.prisma.claim.findMany({
-        where,
-        take: Number(limit) + 1,
-        cursor: cursor
-          ? {
-              id: cursor,
-            }
-          : undefined,
-        orderBy: { created_at: 'desc' },
-        include: {
-          stop_log: {
-            select: {
-              facility_name: true,
-              arrived_at: true,
-              bol_number: true,
-              load_number: true,
+    const [data, statusGroups, pendingAggregate, settledAggregate] =
+      await Promise.all([
+        // 1. Fetch paginated claims data
+        this.prisma.claim.findMany({
+          where,
+          take: Number(limit) + 1,
+          cursor: cursor
+            ? {
+                id: cursor,
+              }
+            : undefined,
+          orderBy: { created_at: 'desc' },
+          include: {
+            stop_log: {
+              select: {
+                facility_name: true,
+                arrived_at: true,
+                bol_number: true,
+                load_number: true,
+              },
+            },
+            shipper_facility: {
+              select: {
+                name: true,
+              },
             },
           },
-          shipper_facility: {
-            select: {
-              name: true,
+        }),
+
+        // 2. Fetch counts grouped by status
+        this.prisma.claim.groupBy({
+          by: ['status'],
+          where: { user_id },
+          _count: { id: true },
+        }),
+
+        // 3. Sum of pending claims amount
+        this.prisma.claim.aggregate({
+          where: {
+            user_id,
+            status: ClaimStatus.SUBMITTED,
+          },
+          _sum: {
+            claim_amount: true,
+          },
+        }),
+
+        // 4. Sum of settled claims this week
+        this.prisma.claim.aggregate({
+          where: {
+            user_id,
+            status: ClaimStatus.PAID,
+            paid_at: {
+              gte: weekStart,
+              lt: nextWeekStart,
             },
           },
-        },
-      }),
-
-      // 2. Fetch counts grouped by status
-      this.prisma.claim.groupBy({
-        by: ['status'],
-        where: { user_id },
-        _count: { id: true },
-      }),
-
-      // 3. Sum of pending claims amount
-      this.prisma.claim.aggregate({
-        where: {
-          user_id,
-          status: ClaimStatus.SUBMITTED,
-        },
-        _sum: {
-          claim_amount: true,
-        },
-      }),
-
-      // 4. Sum of settled claims this week
-      this.prisma.claim.aggregate({
-        where: {
-          user_id,
-          status: ClaimStatus.PAID,
-          paid_at: {
-            gte: weekStart,
-            lt: nextWeekStart,
+          _sum: {
+            paid_amount: true,
+            claim_amount: true,
           },
-        },
-        _sum: {
-          paid_amount: true,
-          claim_amount: true,
-        },
-      }),
-    ]);
+        }),
+      ]);
 
-    const nextCursor = data.length > Number(limit) ? data[Number(limit)].id : null;
+    const nextCursor =
+      data.length > Number(limit) ? data[Number(limit)].id : null;
     if (nextCursor) {
       data.pop();
     }
@@ -293,11 +299,16 @@ export class ClaimService {
     // 3. Resolve recipient and CC emails
     const toEmail = claim.recipient_email || claim.stop_log?.broker_email;
     if (!toEmail) {
-      throw new BadRequestException('No recipient email configured for this claim');
+      throw new BadRequestException(
+        'No recipient email configured for this claim',
+      );
     }
 
     const cc = [];
-    if (claim.stop_log?.broker_email && claim.stop_log.broker_email !== toEmail) {
+    if (
+      claim.stop_log?.broker_email &&
+      claim.stop_log.broker_email !== toEmail
+    ) {
       // Check if user has cc_broker setting enabled (defaults to true)
       const brokerCcSetting = await this.prisma.userSetting.findFirst({
         where: {
@@ -305,7 +316,9 @@ export class ClaimService {
           setting: { key: 'cc_broker' },
         },
       });
-      const isCcEnabled = brokerCcSetting ? brokerCcSetting.value === 'true' : true;
+      const isCcEnabled = brokerCcSetting
+        ? brokerCcSetting.value === 'true'
+        : true;
       if (isCcEnabled) {
         cc.push(claim.stop_log.broker_email);
       }
@@ -316,7 +329,9 @@ export class ClaimService {
     let subject = '';
     let templateLevelName = '';
 
-    const bolSuffix = claim.stop_log?.bol_number ? ` - BOL: ${claim.stop_log.bol_number}` : '';
+    const bolSuffix = claim.stop_log?.bol_number
+      ? ` - BOL: ${claim.stop_log.bol_number}`
+      : '';
 
     if (dto.level === 1) {
       template = 'follow-up-level1';
