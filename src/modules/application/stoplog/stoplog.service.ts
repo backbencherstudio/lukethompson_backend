@@ -301,16 +301,7 @@ export class StopLogService {
     }
 
     // 5. Enforce that attachment is MANDATORY for departure/departed logs
-    if (isDepartureOrDeparted) {
-      const totalAttachmentsCount =
-        (activeLog?._count?.attachments || 0) +
-        (hasNewAttachments ? dto.attachments.length : 0);
-      if (totalAttachmentsCount === 0) {
-        throw new BadRequestException(
-          'At least one attachment is mandatory for departure',
-        );
-      }
-    }
+    // (Note: Optional during departure time step; status remains ACTIVE until at least one attachment is present)
 
     // 6. Validate step sequence (if not already departed)
     if (step === LogStopStep.ARRIVAL_TIME) {
@@ -385,8 +376,11 @@ export class StopLogService {
           step === LogStopStep.DEPARTURE_TIME ||
           Boolean(activeLog?.departed_at);
 
+        const totalAttachmentsCount =
+          (activeLog?._count?.attachments || 0) + uploadedAttachments.length;
+
         let determineStatus: PrismaStopLogStatus = PrismaStopLogStatus.ACTIVE;
-        if (hasDepartureTime) {
+        if (hasDepartureTime && totalAttachmentsCount > 0) {
           determineStatus = PrismaStopLogStatus.COMPLETED;
         }
 
@@ -674,15 +668,30 @@ export class StopLogService {
 
     const currentStep = this.getCurrentStep(stoplog);
 
-    if (currentStep !== LogStopStep.DEPARTURE_TIME) {
+    if (stoplog.status !== PrismaStopLogStatus.COMPLETED) {
       return ResponseHelper.success({
         message: 'Stop log fetched successfully',
         data: {
           id: stoplog.id,
+          user_id: stoplog.user_id,
+          shipper_facility_id: stoplog.shipper_facility_id,
+          shipper_id: stoplog.shipper_facility_id,
+          shipper_name: stoplog.shipper_name,
+          facility_name: stoplog.facility_name,
+          bol_number: stoplog.bol_number,
+          status: stoplog.status,
           arrived_at: stoplog.arrived_at,
           docked_at: stoplog.docked_at,
           completed_at: stoplog.completed_at,
           departed_at: stoplog.departed_at,
+          arrival_location: stoplog.arrival_location,
+          facility_address: stoplog.facility_address,
+          attachments: stoplog.attachments.map((attachment) => {
+            return {
+              ...attachment,
+              file_url: NajimStorage.url(attachment.file_url),
+            };
+          }),
           current_step: currentStep,
         },
       });
