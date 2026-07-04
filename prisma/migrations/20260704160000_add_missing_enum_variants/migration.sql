@@ -1,0 +1,3 @@
+-- Enum variants FOLLOW_UP, IN_RECOURSE, UNCOLLECTABLE, IN_COLLECTIONS (ClaimStatus)
+-- and CLAIM_DRAFTED, CLAIM_SUBMITTED (StopLogStatus) were removed from the schema.
+-- No SQL needed: these variants were never used in production data.

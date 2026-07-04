@@ -190,6 +190,8 @@ export class StripePayment {
   static async createCheckoutSessionSubscription(
     customer: string,
     price: string,
+    clientReferenceId?: string,
+    metadata?: Record<string, string>,
   ) {
     const success_url = `${
       appConfig().app.url
@@ -200,6 +202,8 @@ export class StripePayment {
       mode: 'subscription',
       payment_method_types: ['card'],
       customer: customer,
+      client_reference_id: clientReferenceId,
+      metadata: metadata,
       line_items: [
         {
           price: price,
@@ -461,5 +465,9 @@ export class StripePayment {
       STRIPE_WEBHOOK_SECRET,
     );
     return event;
+  }
+
+  static async retrieveSubscription(subscriptionId: string) {
+    return await Stripe.subscriptions.retrieve(subscriptionId);
   }
 }

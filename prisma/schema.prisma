@@ -305,6 +305,9 @@ model SubscriptionPlan {
   status      PlanStatus      @default(ACTIVE)
   sort_order  Int             @default(0)
 
+  product_id String?
+  price_id   String?
+
   apple_product_id  String?
   google_product_id String?
 

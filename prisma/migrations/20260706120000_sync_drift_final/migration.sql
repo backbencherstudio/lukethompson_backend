@@ -1,0 +1,1 @@
+-- This migration records that the DB is already in sync with the Prisma schema. No changes needed.

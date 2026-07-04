@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ContactModule } from './contact/contact.module';
-import { PaymentTransactionModule } from './payment-transaction/payment-transaction.module';
+import { TransactionModule } from './transaction/transaction.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 import { UserModule } from './user/user.module';
 import { NotificationModule } from './notification/notification.module';
 import { StopLogModule } from './stoplog/stoplog.module';
@@ -10,7 +11,8 @@ import { OverviewModule } from './overview/overview.module';
 @Module({
   imports: [
     ContactModule,
-    PaymentTransactionModule,
+    TransactionModule,
+    SubscriptionModule,
     UserModule,
     NotificationModule,
     StopLogModule,

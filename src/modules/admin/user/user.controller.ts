@@ -25,10 +25,10 @@ import { RolesGuard } from '../../../common/guard/role/roles.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiBearerAuth()
-@ApiTags('User')
+@ApiTags('Admin User')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
-@Controller('admin/user')
+@Controller('admin/users')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
