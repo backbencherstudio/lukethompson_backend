@@ -1,15 +1,15 @@
 import { Controller, Post, Body } from '@nestjs/common';
 import { ContactService } from './contact.service';
 import { CreateContactDto } from './dto/create-contact.dto';
-import { ApiExcludeController, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiExcludeController, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Contact')
-@ApiExcludeController()
 @Controller('contact')
 export class ContactController {
   constructor(private readonly contactService: ContactService) {}
 
   @ApiOperation({ summary: 'Create contact' })
+  @ApiResponse({ status: 201, description: 'Contact message submitted successfully.' })
   @Post()
   async create(@Body() createContactDto: CreateContactDto) {
     try {

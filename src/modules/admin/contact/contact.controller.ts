@@ -14,8 +14,8 @@ import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import {
   ApiBearerAuth,
-  ApiExcludeController,
   ApiOperation,
+  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
@@ -24,7 +24,6 @@ import { Role } from '../../../common/guard/role/role.enum';
 import { RolesGuard } from '../../../common/guard/role/roles.guard';
 
 @ApiTags('Contact')
-@ApiExcludeController()
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
@@ -33,6 +32,7 @@ export class ContactController {
   constructor(private readonly contactService: ContactService) {}
 
   @ApiOperation({ summary: 'Create contact' })
+  @ApiResponse({ status: 201, description: 'Contact message submitted successfully.' })
   @Post()
   async create(@Body() createContactDto: CreateContactDto) {
     try {
@@ -47,6 +47,7 @@ export class ContactController {
   }
 
   @ApiOperation({ summary: 'Read all contacts' })
+  @ApiResponse({ status: 200, description: 'List of contact messages retrieved successfully.' })
   @Get()
   async findAll(@Query() query: { q?: string; status?: number }) {
     try {
@@ -67,6 +68,7 @@ export class ContactController {
   }
 
   @ApiOperation({ summary: 'Read one contact' })
+  @ApiResponse({ status: 200, description: 'Contact message details retrieved successfully.' })
   @Get(':id')
   async findOne(@Param('id') id: string) {
     try {
@@ -81,6 +83,7 @@ export class ContactController {
   }
 
   @ApiOperation({ summary: 'Update contact' })
+  @ApiResponse({ status: 200, description: 'Contact updated successfully.' })
   @Patch(':id')
   async update(
     @Param('id') id: string,
@@ -98,6 +101,7 @@ export class ContactController {
   }
 
   @ApiOperation({ summary: 'Delete contact' })
+  @ApiResponse({ status: 200, description: 'Contact deleted successfully.' })
   @Delete(':id')
   async remove(@Param('id') id: string) {
     try {

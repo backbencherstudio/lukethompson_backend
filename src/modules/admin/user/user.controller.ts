@@ -12,7 +12,7 @@ import {
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import {
   AdminUserActionResponseDto,
   AdminUserListResponseDto,
@@ -32,6 +32,10 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  @ApiOperation({
+    summary: 'Create a new user',
+    description: 'Creates a new user with the specified roles and details.',
+  })
   @ApiResponse({
     status: 201,
     description: 'Create a user',
@@ -50,6 +54,10 @@ export class UserController {
     }
   }
 
+  @ApiOperation({
+    summary: 'Retrieve all users',
+    description: 'Fetches a list of all users. Supports query filtering by search, type, and approved status.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Get all users',
@@ -72,6 +80,10 @@ export class UserController {
 
   // approve user
   @Roles(Role.ADMIN)
+  @ApiOperation({
+    summary: 'Approve user registration',
+    description: 'Approves a pending user registration and activates their account.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Approve a user',
@@ -92,6 +104,10 @@ export class UserController {
 
   // reject user
   @Roles(Role.ADMIN)
+  @ApiOperation({
+    summary: 'Reject user registration',
+    description: 'Rejects a pending user registration.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Reject a user',
@@ -110,6 +126,10 @@ export class UserController {
     }
   }
 
+  @ApiOperation({
+    summary: 'Retrieve user by ID',
+    description: 'Fetches detailed information for a specific user by their ID.',
+  })
   @ApiResponse({
     status: 200,
     description: 'Get a user by id',
@@ -128,6 +148,15 @@ export class UserController {
     }
   }
 
+  @ApiOperation({
+    summary: 'Update user details',
+    description: 'Updates details of an existing user.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User updated successfully',
+    type: AdminUserActionResponseDto,
+  })
   @Patch(':id')
   async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
     try {
@@ -141,6 +170,15 @@ export class UserController {
     }
   }
 
+  @ApiOperation({
+    summary: 'Delete user',
+    description: 'Deletes a user by their ID.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'User deleted successfully',
+    type: AdminUserActionResponseDto,
+  })
   @Delete(':id')
   async remove(@Param('id') id: string) {
     try {

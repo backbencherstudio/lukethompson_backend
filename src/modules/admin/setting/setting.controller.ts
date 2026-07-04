@@ -1,5 +1,5 @@
 import { Controller, Get, Patch, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guard/role/roles.guard';
 import { GetUser } from 'src/modules/auth/decorators/get-user.decorator';
@@ -13,18 +13,21 @@ export class SettingController {
   constructor(private readonly settingService: SettingService) {}
 
   @ApiOperation({ summary: 'Get all notification settings' })
+  @ApiResponse({ status: 200, description: 'Notification settings retrieved successfully.' })
   @Get()
   getSettings(@GetUser('id') user_id: string) {
     return this.settingService.getSettings(user_id);
   }
 
   @ApiOperation({ summary: 'Toggle subscription notification' })
+  @ApiResponse({ status: 200, description: 'Subscription notification settings toggled successfully.' })
   @Patch('toggle-subscription')
   toggleSubscriptionNotification(@GetUser('id') user_id: string) {
     return this.settingService.toggleSubscriptionNotification(user_id);
   }
 
   @ApiOperation({ summary: 'Toggle email notification' })
+  @ApiResponse({ status: 200, description: 'Email notification settings toggled successfully.' })
   @Patch('toggle-email')
   toggleEmailNotification(@GetUser('id') user_id: string) {
     return this.settingService.toggleEmailNotification(user_id);

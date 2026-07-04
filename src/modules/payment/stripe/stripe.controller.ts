@@ -4,7 +4,9 @@ import { Request } from 'express';
 import { TransactionRepository } from '../../../common/repository/transaction/transaction.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { SubscriptionStatus } from 'prisma/generated/client';
+import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Payment / Stripe')
 @Controller('payment/stripe')
 export class StripeController {
   constructor(
@@ -13,6 +15,14 @@ export class StripeController {
     private readonly prisma: PrismaService,
   ) {}
 
+  @ApiOperation({
+    summary: 'Stripe Webhook Handler',
+    description: 'Handles incoming asynchronous events from Stripe (e.g. successful checkout sessions, subscriptions updates/cancellations, payment intents status updates).',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Event processed successfully',
+  })
   @Post('webhook')
   async handleWebhook(
     @Headers('stripe-signature') signature: string,

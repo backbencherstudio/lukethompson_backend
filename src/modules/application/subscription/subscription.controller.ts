@@ -22,12 +22,14 @@ export class SubscriptionController {
   constructor(private readonly subscriptionService: SubscriptionService) {}
 
   @ApiOperation({ summary: 'Get all active subscription plans' })
+  @ApiResponse({ status: 200, description: 'List of active subscription plans retrieved successfully.' })
   @Get('plans')
   findAllPlans() {
     return this.subscriptionService.findAllPlans();
   }
 
   @ApiOperation({ summary: 'Get driver current active subscription status' })
+  @ApiResponse({ status: 200, description: 'Current active user subscription retrieved successfully.' })
   @Get('current')
   getCurrentSubscription(@GetUser('id') user_id: string) {
     return this.subscriptionService.getCurrentSubscription(user_id);
