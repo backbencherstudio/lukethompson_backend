@@ -41,3 +41,27 @@ export class QueryShipperDto {
   @IsEnum(QueryShipperStatus)
   status?: QueryShipperStatus = QueryShipperStatus.ALL;
 }
+
+export class SearchShipperDto {
+  @ApiPropertyOptional({
+    example: 'Walmart',
+    description: 'Search keyword for facility name or address',
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiPropertyOptional({
+    example: 'cl0b7e6d5f4g3h2i1j0k9l8m',
+    description: 'Cursor for pagination',
+  })
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+
+  @ApiPropertyOptional({ example: 10, description: 'Items per page' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  limit?: number = 10;
+}

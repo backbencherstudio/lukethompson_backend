@@ -90,6 +90,14 @@ export class AuthService {
       data.phone_number = UpdateRegisteredUserDto.phone_number;
     }
 
+    if (UpdateRegisteredUserDto.free_wait_time) {
+      data.free_wait_time = UpdateRegisteredUserDto.free_wait_time;
+    }
+
+    if (UpdateRegisteredUserDto.rate_per_hour) {
+      data.rate_per_hour = UpdateRegisteredUserDto.rate_per_hour;
+    }
+
     if (avatar) {
       // delete old image from storage
       const oldImage = await this.prisma.user.findFirst({

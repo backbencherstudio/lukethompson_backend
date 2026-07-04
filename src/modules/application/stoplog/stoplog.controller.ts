@@ -35,6 +35,7 @@ import {
   StopLogHomeResponseDto,
   StopLogReportResponseDto,
   StopLogDetailResponseDto,
+  StopLogActiveResponseDto,
 } from './dto/response-stoplog.dto';
 
 @ApiTags('Application stoplog')
@@ -53,7 +54,7 @@ export class StopLogController {
       '- Providing `attachments` or `bol_number` in any other step will result in a `400 Bad Request` error.\n' +
       '- At least one attachment is **mandatory** during or after departure (the request must contain a new attachment or the log must have an existing one). The `bol_number` is optional.\n\n' +
       '**Claim Generation:**\n' +
-      '- Once the stop log is completed (departed) and has at least one attachment, a draft claim (`DRAFT`) is automatically generated/updated based on the waiting hours (total waiting time minus the driver\'s free wait time) and the driver\'s hourly rate.',
+      "- Once the stop log is completed (departed) and has at least one attachment, a draft claim (`DRAFT`) is automatically generated/updated based on the waiting hours (total waiting time minus the driver's free wait time) and the driver's hourly rate.",
   })
   @ApiResponse({
     status: 200,
@@ -126,6 +127,21 @@ export class StopLogController {
   @Get('report')
   getReport(@Query() query: QueryReportDto, @GetUser('id') user_id: string) {
     return this.StopLogService.getReport(user_id, query);
+  }
+
+  @ApiOperation({
+    summary: 'Get active stop log ID',
+    description:
+      'Retrieves the ID of the currently active stop log for the authenticated driver.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Active stop log fetched successfully',
+    type: StopLogActiveResponseDto,
+  })
+  @Get('active')
+  getActiveStopLog(@GetUser('id') user_id: string) {
+    return this.StopLogService.getActiveStopLog(user_id);
   }
 
   @ApiOperation({

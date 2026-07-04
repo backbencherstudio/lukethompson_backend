@@ -577,12 +577,14 @@ export class StopLogService {
     const data = await this.prisma.stopLog.findMany({
       where,
       take: Number(limit) + 1,
+      skip: cursor ? 1 : undefined,
       cursor: cursor
         ? {
             id: cursor,
           }
         : undefined,
       orderBy: { created_at: 'desc' },
+
       select: {
         id: true,
         created_at: true,
@@ -1173,6 +1175,25 @@ export class StopLogService {
           collected: item.collected.toFixed(2),
         })),
       },
+    });
+  }
+
+  async getActiveStopLog(user_id: string) {
+    const activeLog = await this.prisma.stopLog.findFirst({
+      where: {
+        user_id,
+        status: PrismaStopLogStatus.ACTIVE,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    return ResponseHelper.success({
+      message: activeLog
+        ? 'Active stop log fetched successfully'
+        : 'No active stop log found',
+      data: activeLog ? { id: activeLog.id } : null,
     });
   }
 }

@@ -91,3 +91,70 @@ export class ShipperRatingDetailsResponseDto {
   @ApiProperty({ type: ShipperRatingDetailsDto })
   data: ShipperRatingDetailsDto;
 }
+
+// --- Search Shipper Response ---
+export class ShipperSearchItemDto {
+  @ApiProperty({ example: 'shipper_id_1' })
+  id: string;
+
+  @ApiProperty({ example: 'Walmart DC - Memphis' })
+  name: string;
+
+  @ApiProperty({ example: '123 Main St, Memphis, TN 38101', nullable: true })
+  address: string | null;
+
+  @ApiProperty({ example: 85 })
+  rating: number;
+}
+
+export class ShipperSearchResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({ example: 'Shipper facilities searched successfully' })
+  message: string;
+
+  @ApiProperty({ type: [ShipperSearchItemDto] })
+  data: ShipperSearchItemDto[];
+
+  @ApiProperty({ type: ShipperRatingMetaDto })
+  meta_data: ShipperRatingMetaDto;
+}
+
+// --- Create Rating Response ---
+export class ShipperCreateRatingDataDto {
+  @ApiProperty({ example: 'cl0b7e6d5f4g3h2i1j0k9l8m' })
+  id: string;
+
+  @ApiProperty({ example: '2026-07-04T05:00:00.000Z' })
+  created_at: Date;
+
+  @ApiProperty({ example: '2026-07-04T05:00:00.000Z' })
+  updated_at: Date;
+
+  @ApiProperty({ example: '85.00' })
+  rating: string;
+
+  @ApiProperty({ example: null, nullable: true })
+  review: string | null;
+
+  @ApiProperty({ example: 'user_id_123' })
+  user_id: string;
+
+  @ApiProperty({ example: 'shipper_id_456' })
+  shipper_facility_id: string;
+
+  @ApiProperty({ example: 'stop_log_id_789' })
+  stop_log_id: string;
+}
+
+export class ShipperCreateRatingResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({ example: 'Rating submitted successfully' })
+  message: string;
+
+  @ApiProperty({ type: ShipperCreateRatingDataDto })
+  data: ShipperCreateRatingDataDto;
+}

@@ -370,3 +370,19 @@ export class StopLogDetailResponseDto {
   })
   data: StopLogDetailInProgressDto | StopLogDetailCompletedDto;
 }
+
+export class StopLogActiveDataDto {
+  @ApiProperty({ example: 'cl0a1b2c3d4e5f6g7h8i9j0k' })
+  id: string;
+}
+
+export class StopLogActiveResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({ example: 'Active stop log fetched successfully' })
+  message: string;
+
+  @ApiProperty({ type: StopLogActiveDataDto, nullable: true })
+  data: StopLogActiveDataDto | null;
+}

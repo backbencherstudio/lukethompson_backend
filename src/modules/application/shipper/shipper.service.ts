@@ -1,12 +1,31 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ResponseHelper } from 'src/common/helper/response.helper';
-import { QueryShipperDto, QueryShipperStatus } from './dto/query-shipper.dto';
+import {
+  QueryShipperDto,
+  QueryShipperStatus,
+  SearchShipperDto,
+} from './dto/query-shipper.dto';
 import { ClaimStatus, Prisma } from 'prisma/generated/client';
+import { CreateShipperRatingDto } from './dto/create-shipper.dto';
 
 @Injectable()
 export class ShipperService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private async ensurePgTrgm() {
+    try {
+      await this.prisma.$executeRawUnsafe(
+        `CREATE EXTENSION IF NOT EXISTS pg_trgm;`,
+      );
+    } catch (err) {
+      console.error('Failed to ensure pg_trgm extension:', err);
+    }
+  }
 
   async getAllShippers(query: QueryShipperDto) {
     const {
@@ -17,12 +36,22 @@ export class ShipperService {
     } = query;
 
     const where: Prisma.ShipperFacilityWhereInput = {};
+    let matchedIds: { id: string }[] = [];
 
     if (search) {
-      where.name = {
-        contains: search,
-        mode: 'insensitive',
-      };
+      await this.ensurePgTrgm();
+      matchedIds = await this.prisma.$queryRaw`
+        SELECT sf.id
+        FROM shipper_facilities sf
+        LEFT JOIN locations l ON sf.location_id = l.id
+        WHERE sf.name ILIKE ${'%' + search + '%'}
+           OR coalesce(l.address, '') ILIKE ${'%' + search + '%'}
+           OR similarity(sf.name, ${search}) > 0.15
+           OR similarity(coalesce(l.address, ''), ${search}) > 0.15
+        ORDER BY greatest(similarity(sf.name, ${search}), similarity(coalesce(l.address, ''), ${search})) DESC
+      `;
+      const ids = (matchedIds || []).map((m) => m?.id).filter(Boolean);
+      where.id = { in: ids };
     }
 
     // Fetch all shippers matching the name filter, along with their claims and ratings
@@ -128,6 +157,11 @@ export class ShipperService {
 
     // Apply category status filter in memory
     let filteredShippers = mappedShippers;
+
+    if (search) {
+      const ids = (matchedIds || []).map((m) => m?.id).filter(Boolean);
+      filteredShippers.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+    }
 
     if (status === QueryShipperStatus.GOOD_PAYERS) {
       filteredShippers = filteredShippers.filter((s) => s.rating >= 80);
@@ -248,6 +282,174 @@ export class ShipperService {
         avg_pay_days,
         total_paid,
         total_denied,
+      },
+    });
+  }
+
+  async createRating(
+    stop_log_id: string,
+    user_id: string,
+    dto: CreateShipperRatingDto,
+  ) {
+    const stopLog = await this.prisma.stopLog.findFirst({
+      where: { id: stop_log_id, user_id },
+    });
+
+    if (!stopLog) {
+      throw new NotFoundException('Stop log not found');
+    }
+
+    if (!stopLog.shipper_facility_id) {
+      throw new BadRequestException(
+        'This stop log does not have an associated shipper facility',
+      );
+    }
+
+    const existingRating = await this.prisma.shipperFacilityRating.findUnique({
+      where: { stop_log_id },
+    });
+
+    if (existingRating) {
+      throw new BadRequestException('Rating already exists for this stop log');
+    }
+
+    const rating = await this.prisma.shipperFacilityRating.create({
+      data: {
+        rating: dto.rate,
+        user_id,
+        shipper_facility_id: stopLog.shipper_facility_id,
+        stop_log_id,
+      },
+    });
+
+    return ResponseHelper.success({
+      message: 'Rating submitted successfully',
+      data: rating,
+    });
+  }
+
+  async searchShippers(query: SearchShipperDto) {
+    const { search, cursor, limit = 10 } = query;
+
+    let matchedIds: { id: string }[] = [];
+
+    if (search) {
+      await this.ensurePgTrgm();
+      matchedIds = await this.prisma.$queryRaw`
+        SELECT sf.id
+        FROM shipper_facilities sf
+        LEFT JOIN locations l ON sf.location_id = l.id
+        WHERE sf.name ILIKE ${'%' + search + '%'}
+           OR coalesce(l.address, '') ILIKE ${'%' + search + '%'}
+           OR similarity(sf.name, ${search}) > 0.15
+           OR similarity(coalesce(l.address, ''), ${search}) > 0.15
+        ORDER BY greatest(similarity(sf.name, ${search}), similarity(coalesce(l.address, ''), ${search})) DESC
+        LIMIT 100
+      `;
+    }
+
+    const ids = (matchedIds || []).map((m) => m?.id).filter(Boolean);
+
+    const where: Prisma.ShipperFacilityWhereInput = {};
+    if (search) {
+      where.id = { in: ids };
+    }
+
+    const facilities = await this.prisma.shipperFacility.findMany({
+      where,
+      include: {
+        location: {
+          select: {
+            address: true,
+            city: true,
+            state: true,
+            zip: true,
+          },
+        },
+        claims: {
+          select: {
+            status: true,
+          },
+        },
+        ratings: {
+          select: {
+            rating: true,
+          },
+        },
+      },
+    });
+
+    const mapped = (facilities || [])
+      .map((f) => {
+        if (!f) return null;
+        let addressStr = f.location?.address || '';
+        if (!addressStr && f.location) {
+          const parts = [
+            f.location.city,
+            f.location.state,
+            f.location.zip,
+          ].filter(Boolean);
+          addressStr = parts.join(', ');
+        }
+
+        const claims = f.claims || [];
+        const ratings = f.ratings || [];
+        const claims_count = claims.length;
+        const paid_claims_count = claims.filter(
+          (c) => c.status === ClaimStatus.PAID,
+        ).length;
+
+        let rating = 0;
+        if (ratings.length > 0) {
+          const sumRating = ratings.reduce(
+            (sum, r) => sum + Number(r.rating),
+            0,
+          );
+          rating = Math.round(sumRating / ratings.length);
+        } else {
+          rating =
+            claims_count > 0
+              ? Math.round((paid_claims_count / claims_count) * 100)
+              : 0;
+        }
+
+        return {
+          id: f.id,
+          name: f.name,
+          address: addressStr || null,
+          rating,
+        };
+      })
+      .filter(Boolean);
+
+    // Sort by SQL query ranking order if search is provided
+    if (search) {
+      mapped.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+    }
+
+    // Apply cursor pagination in memory
+    let startIndex = 0;
+    if (cursor) {
+      const index = mapped.findIndex((s) => s.id === cursor);
+      if (index !== -1) {
+        startIndex = index + 1;
+      }
+    }
+
+    const paginated = mapped.slice(startIndex, startIndex + Number(limit));
+
+    const nextCursor =
+      startIndex + Number(limit) < mapped.length
+        ? mapped[startIndex + Number(limit) - 1].id
+        : null;
+
+    return ResponseHelper.success({
+      message: 'Shipper facilities searched successfully',
+      data: paginated,
+      meta_data: {
+        next_cursor: nextCursor,
+        limit: Number(limit),
+        search,
       },
     });
   }

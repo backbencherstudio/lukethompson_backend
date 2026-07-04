@@ -9,6 +9,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { Role } from '../../../common/guard/role/role.enum';
+import { Type } from 'class-transformer';
 
 export class RegisterUserDto {
   @ApiProperty({
@@ -45,6 +46,7 @@ export class RegisterUserDto {
     required: false,
   })
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   free_wait_time?: number;
 
@@ -54,6 +56,7 @@ export class RegisterUserDto {
     example: 100,
     required: false,
   })
+  @Type(() => Number)
   @IsOptional()
   @IsNumber()
   rate_per_hour?: number;
@@ -114,10 +117,10 @@ export class ResetPasswordDto {
   @ApiProperty({
     type: String,
     description: 'Token',
-    example: '12345678',
+    example: '123456',
   })
   @IsNotEmpty()
-  @MinLength(8, { message: 'Token should be minimum 8' })
+  @MinLength(6, { message: 'Token should be minimum 6' })
   token: string;
 
   @ApiProperty({
@@ -174,10 +177,10 @@ export class VerifyEmailDto {
   @ApiProperty({
     type: String,
     description: 'Token',
-    example: '12345678',
+    example: '123456',
   })
   @IsNotEmpty()
-  @MinLength(6, { message: 'Token should be minimum 8' })
+  @MinLength(6, { message: 'OTP should be minimum 6' })
   token: string;
 }
 
@@ -205,9 +208,9 @@ export class ChangeEmailAddressDto {
   @ApiProperty({
     type: String,
     description: 'Token',
-    example: '12345678',
+    example: '123456',
   })
   @IsNotEmpty()
-  @MinLength(8, { message: 'Token should be minimum 8' })
+  @MinLength(6, { message: 'Token should be minimum 6' })
   token: string;
 }

@@ -118,10 +118,10 @@ export class PutStopLogDto {
   step: LogStopStep;
 
   @ApiPropertyOptional({
-    description: 'Attachment URL',
+    description: 'Attachments',
     type: 'array',
     items: {
-      type: 'string',
+      type: 'file',
       format: 'binary',
     },
   })
