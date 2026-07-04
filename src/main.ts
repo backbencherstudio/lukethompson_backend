@@ -105,6 +105,42 @@ async function bootstrap() {
       defaultModelsExpandDepth: -1,
       displayRequestDuration: true,
       docExpansion: 'none',
+      filter: true,
+      plugins: [
+        (system) => {
+          return {
+            fn: {
+              opsFilter: (taggedOps, phrase) => {
+                if (!phrase) return taggedOps;
+                const phraseLower = phrase.toLowerCase();
+                return taggedOps
+                  .map((tagObj, tag) => {
+                    const operations = tagObj.get('operations');
+                    if (!operations) return tagObj;
+                    const filteredOps = operations.filter((op) => {
+                      const path = op.get('path') || '';
+                      const summary = op.getIn(['operation', 'summary']) || '';
+                      const method = op.get('method') || '';
+                      return (
+                        path.toLowerCase().includes(phraseLower) ||
+                        summary.toLowerCase().includes(phraseLower) ||
+                        method.toLowerCase().includes(phraseLower)
+                      );
+                    });
+                    return tagObj.set('operations', filteredOps);
+                  })
+                  .filter((tagObj, tag) => {
+                    const operations = tagObj.get('operations');
+                    return (
+                      (operations && operations.size > 0) ||
+                      tag.toLowerCase().includes(phraseLower)
+                    );
+                  });
+              },
+            },
+          };
+        },
+      ],
 
       // 1. Persistence Logic: Reload holeo jeno authorize thake
       onComplete: () => {
