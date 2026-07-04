@@ -77,12 +77,14 @@ export class ClaimService {
         this.prisma.claim.findMany({
           where,
           take: Number(limit) + 1,
+          skip: cursor ? 1 : undefined,
           cursor: cursor
             ? {
                 id: cursor,
               }
             : undefined,
           orderBy: { created_at: 'desc' },
+
           include: {
             stop_log: {
               select: {
