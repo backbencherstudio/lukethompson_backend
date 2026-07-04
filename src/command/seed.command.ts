@@ -40,18 +40,27 @@ export class SeedCommand extends CommandRunner {
 
   //---- user section ----
   async userSeed() {
-    // system admin, user id: 1
-    const systemUser = await this.userRepository.createSuAdminUser({
-      username: appConfig().defaultUser.system.username,
-      email: appConfig().defaultUser.system.email,
-      password: appConfig().defaultUser.system.password,
+    const email = appConfig().defaultUser.system.email;
+    let systemUser = await this.prisma.user.findUnique({
+      where: { email },
     });
 
-    await this.prisma.roleUser.create({
-      data: {
-        user_id: systemUser.id,
-        role_id: '1',
-      },
+    if (!systemUser) {
+      systemUser = await this.userRepository.createSuAdminUser({
+        username: appConfig().defaultUser.system.username,
+        email: email,
+        password: appConfig().defaultUser.system.password,
+      });
+    }
+
+    await this.prisma.roleUser.createMany({
+      data: [
+        {
+          user_id: systemUser.id,
+          role_id: '1',
+        },
+      ],
+      skipDuplicates: true,
     });
   }
 
@@ -106,6 +115,7 @@ export class SeedCommand extends CommandRunner {
 
     await this.prisma.permission.createMany({
       data: permissions,
+      skipDuplicates: true,
     });
   }
 
@@ -126,6 +136,7 @@ export class SeedCommand extends CommandRunner {
     }
     await this.prisma.permissionRole.createMany({
       data: adminPermissionRoleArray,
+      skipDuplicates: true,
     });
     // -----------
 
@@ -145,6 +156,7 @@ export class SeedCommand extends CommandRunner {
     }
     await this.prisma.permissionRole.createMany({
       data: projectAdminPermissionRoleArray,
+      skipDuplicates: true,
     });
     // -----------
 
@@ -170,6 +182,7 @@ export class SeedCommand extends CommandRunner {
     }
     await this.prisma.permissionRole.createMany({
       data: projectManagerPermissionRoleArray,
+      skipDuplicates: true,
     });
     // -----------
 
@@ -194,6 +207,7 @@ export class SeedCommand extends CommandRunner {
     }
     await this.prisma.permissionRole.createMany({
       data: memberPermissionRoleArray,
+      skipDuplicates: true,
     });
     // -----------
 
@@ -216,6 +230,7 @@ export class SeedCommand extends CommandRunner {
     }
     await this.prisma.permissionRole.createMany({
       data: viewerPermissionRoleArray,
+      skipDuplicates: true,
     });
     // -----------
   }
@@ -251,6 +266,7 @@ export class SeedCommand extends CommandRunner {
           name: 'viewer',
         },
       ],
+      skipDuplicates: true,
     });
   }
 
@@ -260,63 +276,188 @@ export class SeedCommand extends CommandRunner {
         key: 'stop_logs',
         name: 'Stop Logs',
         description: 'Create and manage stop logs.',
-        type: 'LIMIT',
+        type: 'LIMIT' as const,
         unit: 'logs',
-        reset_period: 'MONTHLY',
+        reset_period: 'MONTHLY' as const,
         sort_order: 10,
       },
       {
         key: 'claims',
         name: 'Claims',
         description: 'Create detention claim cases.',
-        type: 'LIMIT',
+        type: 'LIMIT' as const,
         unit: 'claims',
-        reset_period: 'MONTHLY',
+        reset_period: 'MONTHLY' as const,
         sort_order: 20,
+      },
+      {
+        key: 'view_shipper_ratings',
+        name: 'View Shipper Ratings',
+        description: 'View shipper rating during stop log creation.',
+        type: 'BOOLEAN' as const,
+        reset_period: 'NEVER' as const,
+        sort_order: 25,
+      },
+      {
+        key: 'view_shipper_reviews',
+        name: 'View Shipper Reviews',
+        description: 'View detailed reviews and feedback for shippers.',
+        type: 'BOOLEAN' as const,
+        reset_period: 'NEVER' as const,
+        sort_order: 26,
       },
       {
         key: 'weekly_reports',
         name: 'Weekly Reports',
         description: 'View weekly detention reports.',
-        type: 'BOOLEAN',
-        reset_period: 'NEVER',
+        type: 'BOOLEAN' as const,
+        reset_period: 'NEVER' as const,
         sort_order: 30,
       },
       {
         key: 'proof_package',
         name: 'Proof Package',
         description: 'Generate proof packages for claims.',
-        type: 'BOOLEAN',
-        reset_period: 'NEVER',
+        type: 'BOOLEAN' as const,
+        reset_period: 'NEVER' as const,
         sort_order: 40,
       },
-      {
-        key: 'storage_mb',
-        name: 'Storage',
-        description: 'Monthly storage allowance for uploaded evidence.',
-        type: 'LIMIT',
-        unit: 'MB',
-        reset_period: 'MONTHLY',
-        sort_order: 50,
-      },
-      {
-        key: 'priority_support',
-        name: 'Priority Support',
-        description: 'Priority support access.',
-        type: 'BOOLEAN',
-        reset_period: 'NEVER',
-        sort_order: 60,
-      },
-    ] as const;
+    ];
 
+    // Seed Features
+    const featureMap = new Map<string, string>();
     for (const feature of features) {
-      await this.prisma.subscriptionFeature.upsert({
-        where: {
-          key: feature.key,
+      const dbFeature = await this.prisma.subscriptionFeature.upsert({
+        where: { key: feature.key },
+        update: {
+          name: feature.name,
+          description: feature.description,
+          type: feature.type,
+          unit: feature.unit,
+          reset_period: feature.reset_period,
+          sort_order: feature.sort_order,
         },
-        update: feature,
-        create: feature,
+        create: {
+          key: feature.key,
+          name: feature.name,
+          description: feature.description,
+          type: feature.type,
+          unit: feature.unit,
+          reset_period: feature.reset_period,
+          sort_order: feature.sort_order,
+        },
       });
+      featureMap.set(feature.key, dbFeature.id);
+    }
+
+    // Seed Plans
+    const plans = [
+      {
+        slug: 'free',
+        name: 'Free Plan',
+        description: 'Basic access for drivers.',
+        price: 0,
+        currency: 'USD',
+        interval: 'MONTHLY' as const,
+        status: 'ACTIVE' as const,
+        sort_order: 10,
+        features: [
+          { key: 'stop_logs', enabled: true, limit_value: 5 },
+          { key: 'claims', enabled: false, limit_value: 0 },
+          { key: 'view_shipper_ratings', enabled: false },
+          { key: 'view_shipper_reviews', enabled: false },
+          { key: 'weekly_reports', enabled: false },
+          { key: 'proof_package', enabled: false },
+        ],
+      },
+      {
+        slug: 'pro',
+        name: 'Pro Plan',
+        description: 'Perfect for active drivers.',
+        price: 19.99,
+        currency: 'USD',
+        interval: 'MONTHLY' as const,
+        status: 'ACTIVE' as const,
+        sort_order: 20,
+        features: [
+          { key: 'stop_logs', enabled: true, limit_value: 100 },
+          { key: 'claims', enabled: true, limit_value: 10 },
+          { key: 'view_shipper_ratings', enabled: true },
+          { key: 'view_shipper_reviews', enabled: true },
+          { key: 'weekly_reports', enabled: true },
+          { key: 'proof_package', enabled: true },
+        ],
+      },
+      {
+        slug: 'premium',
+        name: 'Premium Plan',
+        description: 'Unlimited access.',
+        price: 49.99,
+        currency: 'USD',
+        interval: 'MONTHLY' as const,
+        status: 'ACTIVE' as const,
+        sort_order: 30,
+        features: [
+          { key: 'stop_logs', enabled: true, limit_value: null },
+          { key: 'claims', enabled: true, limit_value: null },
+          { key: 'view_shipper_ratings', enabled: true },
+          { key: 'view_shipper_reviews', enabled: true },
+          { key: 'weekly_reports', enabled: true },
+          { key: 'proof_package', enabled: true },
+        ],
+      },
+    ];
+
+    for (const plan of plans) {
+      const { features: planFeatures, ...planData } = plan;
+
+      const dbPlan = await this.prisma.subscriptionPlan.upsert({
+        where: { slug: planData.slug },
+        update: {
+          name: planData.name,
+          description: planData.description,
+          price: planData.price,
+          currency: planData.currency,
+          interval: planData.interval,
+          status: planData.status,
+          sort_order: planData.sort_order,
+        },
+        create: {
+          name: planData.name,
+          slug: planData.slug,
+          description: planData.description,
+          price: planData.price,
+          currency: planData.currency,
+          interval: planData.interval,
+          status: planData.status,
+          sort_order: planData.sort_order,
+        },
+      });
+
+      // Link features to the plan
+      for (const pf of planFeatures) {
+        const featureId = featureMap.get(pf.key);
+        if (!featureId) continue;
+
+        await this.prisma.subscriptionPlanFeature.upsert({
+          where: {
+            plan_id_feature_id: {
+              plan_id: dbPlan.id,
+              feature_id: featureId,
+            },
+          },
+          update: {
+            enabled: pf.enabled,
+            limit_value: pf.limit_value !== undefined ? pf.limit_value : null,
+          },
+          create: {
+            plan_id: dbPlan.id,
+            feature_id: featureId,
+            enabled: pf.enabled,
+            limit_value: pf.limit_value !== undefined ? pf.limit_value : null,
+          },
+        });
+      }
     }
   }
 }
