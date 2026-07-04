@@ -3,7 +3,7 @@ import { StripeService } from './stripe.service';
 import { Request } from 'express';
 import { TransactionRepository } from '../../../common/repository/transaction/transaction.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { SubscriptionStatus } from '@prisma/client';
+import { SubscriptionStatus } from 'prisma/generated/client';
 
 @Controller('payment/stripe')
 export class StripeController {

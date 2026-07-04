@@ -35,9 +35,9 @@ export class SubscriptionSyncCron {
         if (!sub.purchase_id) continue;
 
         try {
-          const stripeSub = await StripePayment.retrieveSubscription(
+          const stripeSub = (await StripePayment.retrieveSubscription(
             sub.purchase_id,
-          );
+          )) as any;
           const status = stripeSub.status;
           const currentPeriodStart = new Date(
             stripeSub.current_period_start * 1000,
