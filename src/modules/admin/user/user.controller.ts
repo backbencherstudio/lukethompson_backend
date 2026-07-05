@@ -12,7 +12,13 @@ import {
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiExcludeEndpoint,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   AdminUserActionResponseDto,
   AdminUserListResponseDto,
@@ -23,8 +29,9 @@ import { Role } from '../../../common/guard/role/role.enum';
 import { Roles } from '../../../common/guard/role/roles.decorator';
 import { RolesGuard } from '../../../common/guard/role/roles.guard';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { QueryUserDto } from './dto/query-user.dto';
 
-@ApiBearerAuth()
+@ApiBearerAuth('admin_token')
 @ApiTags('Admin User')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
@@ -32,6 +39,7 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  @ApiExcludeEndpoint()
   @ApiOperation({
     summary: 'Create a new user',
     description: 'Creates a new user with the specified roles and details.',
@@ -56,7 +64,8 @@ export class UserController {
 
   @ApiOperation({
     summary: 'Retrieve all users',
-    description: 'Fetches a list of all users. Supports query filtering by search, type, and approved status.',
+    description:
+      'Fetches a list of all users. Supports query filtering by search, type, and approved status.',
   })
   @ApiResponse({
     status: 200,
@@ -64,25 +73,16 @@ export class UserController {
     type: AdminUserListResponseDto,
   })
   @Get()
-  async findAll(
-    @Query() query: { search?: string; type?: string; approved?: string },
-  ) {
-    try {
-      const users = await this.userService.findAll(query);
-      return users;
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
+  async findAll(@Query() query: QueryUserDto) {
+    return await this.userService.findAll(query);
   }
 
+  @ApiExcludeEndpoint()
   // approve user
-  @Roles(Role.ADMIN)
   @ApiOperation({
     summary: 'Approve user registration',
-    description: 'Approves a pending user registration and activates their account.',
+    description:
+      'Approves a pending user registration and activates their account.',
   })
   @ApiResponse({
     status: 200,
@@ -103,7 +103,7 @@ export class UserController {
   }
 
   // reject user
-  @Roles(Role.ADMIN)
+  @ApiExcludeEndpoint()
   @ApiOperation({
     summary: 'Reject user registration',
     description: 'Rejects a pending user registration.',
@@ -128,24 +128,17 @@ export class UserController {
 
   @ApiOperation({
     summary: 'Retrieve user by ID',
-    description: 'Fetches detailed information for a specific user by their ID.',
+    description:
+      'Fetches detailed information for a specific user by their ID.',
   })
   @ApiResponse({
     status: 200,
     description: 'Get a user by id',
     type: AdminUserDetailResponseDto,
   })
-  @Get(':id')
-  async findOne(@Param('id') id: string) {
-    try {
-      const user = await this.userService.findOne(id);
-      return user;
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
+  @Get(':user_id')
+  findOne(@Param('user_id') user_id: string) {
+    return this.userService.findOne(user_id);
   }
 
   @ApiOperation({
@@ -158,16 +151,8 @@ export class UserController {
     type: AdminUserActionResponseDto,
   })
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    try {
-      const user = await this.userService.update(id, updateUserDto);
-      return user;
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
+  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+    return this.userService.update(id, updateUserDto);
   }
 
   @ApiOperation({
@@ -180,15 +165,7 @@ export class UserController {
     type: AdminUserActionResponseDto,
   })
   @Delete(':id')
-  async remove(@Param('id') id: string) {
-    try {
-      const user = await this.userService.remove(id);
-      return user;
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
+  remove(@Param('id') id: string) {
+    return this.userService.remove(id);
   }
 }

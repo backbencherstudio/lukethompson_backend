@@ -106,24 +106,4 @@ export class StopLogService {
       },
     });
   }
-
-  create(createStopLogDto: CreateStopLogDto) {
-    return 'This action adds a new stoplog';
-  }
-
-  findAll() {
-    return `This action returns all stoplog`;
-  }
-
-  findOne(id: number) {
-    return `This action returns a #${id} stoplog`;
-  }
-
-  update(id: number, updateStopLogDto: UpdateStopLogDto) {
-    return `This action updates a #${id} stoplog`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} stoplog`;
-  }
 }

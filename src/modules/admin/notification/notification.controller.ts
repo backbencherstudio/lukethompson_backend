@@ -1,13 +1,18 @@
 import { Controller, Get, Param, Delete, UseGuards, Req } from '@nestjs/common';
 import { NotificationService } from './notification.service';
-import { ApiBearerAuth, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Role } from '../../../common/guard/role/role.enum';
 import { Roles } from '../../../common/guard/role/roles.decorator';
 import { RolesGuard } from '../../../common/guard/role/roles.guard';
 import { JwtAuthGuard } from '../../../modules/auth/guards/jwt-auth.guard';
 import { Request } from 'express';
 
-@ApiBearerAuth()
+@ApiBearerAuth('admin_token')
 @ApiTags('Notification')
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(Role.ADMIN)
@@ -16,7 +21,10 @@ export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 
   @ApiOperation({ summary: 'Get all notifications' })
-  @ApiResponse({ status: 200, description: 'List of notifications retrieved successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of notifications retrieved successfully.',
+  })
   @Get()
   async findAll(@Req() req: Request) {
     try {
@@ -34,7 +42,10 @@ export class NotificationController {
   }
 
   @ApiOperation({ summary: 'Delete notification' })
-  @ApiResponse({ status: 200, description: 'Notification deleted successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Notification deleted successfully.',
+  })
   @Delete(':id')
   async remove(@Req() req: Request, @Param('id') id: string) {
     try {
@@ -51,7 +62,10 @@ export class NotificationController {
   }
 
   @ApiOperation({ summary: 'Delete all notifications' })
-  @ApiResponse({ status: 200, description: 'All notifications cleared successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'All notifications cleared successfully.',
+  })
   @Delete()
   async removeAll(@Req() req: Request) {
     try {

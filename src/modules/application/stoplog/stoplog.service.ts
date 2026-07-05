@@ -25,7 +25,7 @@ import appConfig from 'src/config/app.config';
 
 type StepState = Pick<
   Prisma.StopLogUncheckedCreateInput,
-  'arrived_at' | 'docked_at' | 'completed_at' | 'departed_at'
+  'arrived_at' | 'docked_at' | 'completed_at' | 'departed_at' | 'status'
 >;
 
 @Injectable()
@@ -46,43 +46,19 @@ export class StopLogService {
       prev: LogStopStep.COMPLETED_TIME,
       field: 'departed_at',
     },
+    [LogStopStep.UPLOAD_DOCUMENTS]: {
+      prev: LogStopStep.DEPARTURE_TIME,
+      field: null,
+    },
   };
 
   private getCurrentStep(stopLog: StepState): LogStopStep {
+    if (stopLog.status === PrismaStopLogStatus.COMPLETED)
+      return LogStopStep.UPLOAD_DOCUMENTS;
     if (stopLog.departed_at) return LogStopStep.DEPARTURE_TIME;
     if (stopLog.completed_at) return LogStopStep.COMPLETED_TIME;
     if (stopLog.docked_at) return LogStopStep.DOCK_IN_TIME;
     return LogStopStep.ARRIVAL_TIME;
-  }
-
-  private getStopLogAddress(stopLog: {
-    facility_address?: { address: string | null } | null;
-    arrival_location?: { address: string | null } | null;
-  }) {
-    return (
-      stopLog.facility_address?.address ||
-      stopLog.arrival_location?.address ||
-      null
-    );
-  }
-
-  private getHomeDataPeriodStart(period: Period, date: Date) {
-    const start = new Date(date);
-
-    switch (period) {
-      case Period.TODAY:
-        start.setHours(0, 0, 0, 0);
-        return start;
-      case Period.WEEK:
-        start.setDate(start.getDate() - 7);
-        return start;
-      case Period.MONTH:
-        start.setMonth(start.getMonth() - 1);
-        return start;
-      case Period.YEAR:
-        start.setFullYear(start.getFullYear() - 1);
-        return start;
-    }
   }
 
   private getWeekStart(date: Date) {
@@ -100,140 +76,6 @@ export class StopLogService {
     const minutes = totalMinutes % 60;
 
     return `${formattedHours}h ${minutes}m`;
-  }
-
-  private async uploadStopLogAttachments(
-    attachments: PutStopLogDto['attachments'] = [],
-  ) {
-    const uploadedAttachments: Prisma.AttachmentCreateInput[] = [];
-
-    for (const attachment of attachments) {
-      try {
-        const fileName = NajimStorage.generateFilename(attachment.originalname);
-        const objectKey = `${appConfig().storageUrl.stopLog}/${fileName}`;
-
-        await NajimStorage.put(objectKey, attachment.buffer);
-
-        uploadedAttachments.push({
-          type: 'OTHER',
-          file_name: fileName,
-          file_url: objectKey,
-          mime_type: attachment.mimetype,
-          size_bytes: attachment.size,
-        });
-      } catch (error) {
-        console.log('Error during attachment upload stoplog DTO:', error);
-      }
-    }
-
-    return uploadedAttachments;
-  }
-
-  private async deleteUploadedAttachments(
-    attachments: Prisma.AttachmentCreateInput[],
-  ) {
-    for (const attachment of attachments) {
-      try {
-        await NajimStorage.delete(attachment.file_url);
-      } catch (error) {
-        console.log('Error during attachment deletion stoplog DTO:', error);
-      }
-    }
-  }
-
-  private async createLocation(
-    tx: Prisma.TransactionClient,
-    location: NonNullable<PutStopLogDto['location']>,
-  ) {
-    const createdLocation = await tx.location.create({
-      data: {
-        ...location,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    return createdLocation.id;
-  }
-
-  private async resolveShipperFacility(
-    tx: Prisma.TransactionClient,
-    dto: PutStopLogDto,
-    locationId?: string,
-  ) {
-    if (dto.shipper_id) {
-      const shipperFacility = await tx.shipperFacility.findUnique({
-        where: { id: dto.shipper_id },
-        select: { id: true, name: true },
-      });
-
-      if (!shipperFacility) {
-        throw new BadRequestException('Invalid shipper id');
-      }
-
-      return shipperFacility;
-    }
-
-    if (!dto.facility_name?.trim()) {
-      throw new BadRequestException(
-        'Facility name is required when shipper id is not provided',
-      );
-    }
-
-    if (
-      !dto.location ||
-      !(
-        dto.location.address ||
-        dto.location.city ||
-        dto.location.state ||
-        dto.location.country ||
-        dto.location.zip
-      )
-    ) {
-      throw new BadRequestException(
-        'Arrival location is required when shipper id is not provided',
-      );
-    }
-
-    const facilityName = dto.facility_name.trim();
-    const normalizedName = [
-      facilityName,
-      dto.location.address,
-      dto.location.city,
-      dto.location.state,
-      dto.location.country,
-      dto.location.zip,
-    ]
-      .map((value) => value?.trim().toLowerCase().replace(/\s+/g, ' ') ?? '')
-      .filter(Boolean)
-      .join('|');
-
-    const existingShipperFacility = await tx.shipperFacility.findUnique({
-      where: {
-        normalized_name: normalizedName,
-      },
-      select: {
-        id: true,
-        name: true,
-      },
-    });
-
-    if (existingShipperFacility) {
-      return existingShipperFacility;
-    }
-
-    return tx.shipperFacility.create({
-      data: {
-        name: facilityName,
-        normalized_name: normalizedName,
-        location_id: locationId,
-      },
-      select: {
-        id: true,
-        name: true,
-      },
-    });
   }
 
   async putStopLog(dto: PutStopLogDto, user_id: string) {
@@ -255,6 +97,7 @@ export class StopLogService {
             departed_at: true,
             bol_number: true,
             user_id: true,
+            status: true,
             _count: {
               select: {
                 attachments: true,
@@ -263,7 +106,7 @@ export class StopLogService {
           },
         })
       : await this.prisma.stopLog.findFirst({
-          where: { user_id, departed_at: null },
+          where: { user_id, status: { not: PrismaStopLogStatus.COMPLETED } },
           orderBy: { created_at: 'desc' },
           select: {
             id: true,
@@ -273,6 +116,7 @@ export class StopLogService {
             departed_at: true,
             bol_number: true,
             user_id: true,
+            status: true,
             _count: {
               select: {
                 attachments: true,
@@ -286,24 +130,16 @@ export class StopLogService {
       throw new UnauthorizedException('Unauthorized access to stop log');
     }
 
-    // 3. Check if departure has occurred or is occurring
-    const isDepartureOrDeparted =
-      step === LogStopStep.DEPARTURE_TIME || Boolean(activeLog?.departed_at);
+    // 3. Step Order ranking
+    const STEP_ORDER = {
+      [LogStopStep.ARRIVAL_TIME]: 1,
+      [LogStopStep.DOCK_IN_TIME]: 2,
+      [LogStopStep.COMPLETED_TIME]: 3,
+      [LogStopStep.DEPARTURE_TIME]: 4,
+      [LogStopStep.UPLOAD_DOCUMENTS]: 5,
+    };
 
-    // 4. Enforce that bol_number and attachments are ONLY allowed during/after departure
-    const hasNewAttachments = dto.attachments && dto.attachments.length > 0;
-    if (!isDepartureOrDeparted) {
-      if (hasNewAttachments || bol_number) {
-        throw new BadRequestException(
-          'BOL number and attachments can only be provided during or after departure',
-        );
-      }
-    }
-
-    // 5. Enforce that attachment is MANDATORY for departure/departed logs
-    // (Note: Optional during departure time step; status remains ACTIVE until at least one attachment is present)
-
-    // 6. Validate step sequence (if not already departed)
+    // 4. Validate step sequence
     if (step === LogStopStep.ARRIVAL_TIME) {
       if (activeLog) {
         throw new BadRequestException(
@@ -316,22 +152,76 @@ export class StopLogService {
           'No active stop log found. Start with Arrival.',
         );
       }
-      // If the log is already departed, we only allow updating bol_number and attachments
-      // If it is not yet departed, we enforce the step sequence
+
+      const currentStep = this.getCurrentStep(activeLog);
+
+      // Rule: Step cannot go backward (upper level to lower level)
+      if (STEP_ORDER[step] < STEP_ORDER[currentStep]) {
+        throw new BadRequestException(
+          `Cannot go back to an earlier step (${currentStep}) from ${step}`,
+        );
+      }
+
+      // Rule: Strict sequence check for forward progress
+      if (STEP_ORDER[step] > STEP_ORDER[currentStep]) {
+        if (STEP_ORDER[step] !== STEP_ORDER[currentStep] + 1) {
+          const expectedStep = Object.keys(STEP_ORDER).find(
+            (k) => STEP_ORDER[k] === STEP_ORDER[currentStep] + 1,
+          );
+          throw new BadRequestException(
+            `Invalid sequence. Next step should be: ${expectedStep}`,
+          );
+        }
+      }
+
+      // Rule: Prevent repeating completed steps (except upload_documents)
       if (
-        !activeLog.departed_at &&
-        this.getCurrentStep(activeLog) !== config.prev
+        STEP_ORDER[step] === STEP_ORDER[currentStep] &&
+        step !== LogStopStep.UPLOAD_DOCUMENTS
       ) {
         throw new BadRequestException(
-          `Invalid sequence. Next step should be: ${config.prev}`,
+          `Step ${step} has already been completed and cannot be recorded again`,
         );
       }
     }
 
-    // 7. Upload attachments now that validation has passed
-    const uploadedAttachments = await this.uploadStopLogAttachments(
-      dto.attachments,
-    );
+    // 5. Enforce that bol_number and attachments can ONLY be provided during or after the upload_documents step
+    const hasNewAttachments = dto.attachments && dto.attachments.length > 0;
+    const currentStepOfLog = activeLog ? this.getCurrentStep(activeLog) : null;
+    const isUploadOrUploaded =
+      step === LogStopStep.UPLOAD_DOCUMENTS ||
+      currentStepOfLog === LogStopStep.UPLOAD_DOCUMENTS;
+
+    if (!isUploadOrUploaded) {
+      if (hasNewAttachments || bol_number !== undefined) {
+        throw new BadRequestException(
+          'BOL number and attachments can only be provided during the upload_documents step',
+        );
+      }
+    }
+
+    // 6. Inline upload attachments
+    const uploadedAttachments: Prisma.AttachmentCreateInput[] = [];
+    if (dto.attachments) {
+      for (const attachment of dto.attachments) {
+        try {
+          const fileName = NajimStorage.generateFilename(
+            attachment.originalname,
+          );
+          const objectKey = `${appConfig().storageUrl.stopLog}/${fileName}`;
+          await NajimStorage.put(objectKey, attachment.buffer);
+          uploadedAttachments.push({
+            type: 'OTHER',
+            file_name: fileName,
+            file_url: objectKey,
+            mime_type: attachment.mimetype,
+            size_bytes: attachment.size,
+          });
+        } catch (error) {
+          console.log('Error during attachment upload stoplog DTO:', error);
+        }
+      }
+    }
 
     const stopLogSelect = {
       id: true,
@@ -372,22 +262,28 @@ export class StopLogService {
         }
 
         const now = new Date();
-        const hasDepartureTime =
-          step === LogStopStep.DEPARTURE_TIME ||
-          Boolean(activeLog?.departed_at);
 
         const totalAttachmentsCount =
           (activeLog?._count?.attachments || 0) + uploadedAttachments.length;
 
         let determineStatus: PrismaStopLogStatus = PrismaStopLogStatus.ACTIVE;
-        if (hasDepartureTime && totalAttachmentsCount > 0) {
+        if (
+          step === LogStopStep.UPLOAD_DOCUMENTS ||
+          activeLog?.status === PrismaStopLogStatus.COMPLETED
+        ) {
+          if (totalAttachmentsCount === 0) {
+            throw new BadRequestException(
+              'At least one attachment is mandatory to complete the stop log',
+            );
+          }
           determineStatus = PrismaStopLogStatus.COMPLETED;
         }
 
         const stoplog =
           step === LogStopStep.ARRIVAL_TIME
             ? await (async () => {
-                const arrivalLocationId =
+                // Inline location creation check
+                const hasLocation =
                   dto.location &&
                   Boolean(
                     dto.location.address ||
@@ -395,35 +291,94 @@ export class StopLogService {
                       dto.location.state ||
                       dto.location.country ||
                       dto.location.zip,
-                  )
-                    ? await this.createLocation(tx, dto.location)
-                    : undefined;
-                const facilityAddressId =
-                  dto.location &&
-                  Boolean(
-                    dto.location.address ||
-                      dto.location.city ||
-                      dto.location.state ||
-                      dto.location.country ||
-                      dto.location.zip,
-                  )
-                    ? await this.createLocation(tx, dto.location)
-                    : undefined;
-                const shipperFacility = await this.resolveShipperFacility(
-                  tx,
-                  dto,
-                  facilityAddressId,
-                );
+                  );
+
+                const arrivalLocationId = hasLocation
+                  ? (
+                      await tx.location.create({
+                        data: dto.location!,
+                        select: { id: true },
+                      })
+                    ).id
+                  : undefined;
+                const facilityAddressId = hasLocation
+                  ? (
+                      await tx.location.create({
+                        data: dto.location!,
+                        select: { id: true },
+                      })
+                    ).id
+                  : undefined;
+
+                // Inline resolveShipperFacility
+                let shipperFacilityId = dto.shipper_id;
+                let shipperFacilityName = dto.facility_name?.trim();
+
+                if (dto.shipper_id) {
+                  const sf = await tx.shipperFacility.findUnique({
+                    where: { id: dto.shipper_id },
+                    select: { id: true, name: true },
+                  });
+                  if (!sf) {
+                    throw new BadRequestException('Invalid shipper id');
+                  }
+                  shipperFacilityName = sf.name;
+                } else {
+                  if (!dto.facility_name?.trim()) {
+                    throw new BadRequestException(
+                      'Facility name is required when shipper id is not provided',
+                    );
+                  }
+                  if (!dto.location || !hasLocation) {
+                    throw new BadRequestException(
+                      'Arrival location is required when shipper id is not provided',
+                    );
+                  }
+
+                  const facilityName = dto.facility_name.trim();
+                  const normalizedName = [
+                    facilityName,
+                    dto.location.address,
+                    dto.location.city,
+                    dto.location.state,
+                    dto.location.country,
+                    dto.location.zip,
+                  ]
+                    .map(
+                      (value) =>
+                        value?.trim().toLowerCase().replace(/\s+/g, ' ') ?? '',
+                    )
+                    .filter(Boolean)
+                    .join('|');
+
+                  const existingSF = await tx.shipperFacility.findUnique({
+                    where: { normalized_name: normalizedName },
+                    select: { id: true, name: true },
+                  });
+
+                  if (existingSF) {
+                    shipperFacilityId = existingSF.id;
+                    shipperFacilityName = existingSF.name;
+                  } else {
+                    const newSF = await tx.shipperFacility.create({
+                      data: {
+                        name: facilityName,
+                        normalized_name: normalizedName,
+                        location_id: facilityAddressId,
+                      },
+                      select: { id: true, name: true },
+                    });
+                    shipperFacilityId = newSF.id;
+                    shipperFacilityName = newSF.name;
+                  }
+                }
 
                 return tx.stopLog.create({
                   data: {
                     user_id,
-                    shipper_facility_id: shipperFacility.id,
-                    shipper_name: shipperFacility.name,
-                    facility_name:
-                      dto.facility_name?.trim() ||
-                      shipperFacility.name ||
-                      'Unknown Facility',
+                    shipper_facility_id: shipperFacilityId,
+                    shipper_name: shipperFacilityName,
+                    facility_name: shipperFacilityName || 'Unknown Facility',
                     bol_number: bol_number?.trim() || undefined,
                     status: determineStatus,
                     arrived_at: now,
@@ -439,7 +394,7 @@ export class StopLogService {
                 });
               })()
             : await (async () => {
-                const facilityAddressId =
+                const hasLocation =
                   dto.location &&
                   Boolean(
                     dto.location.address ||
@@ -447,12 +402,23 @@ export class StopLogService {
                       dto.location.state ||
                       dto.location.country ||
                       dto.location.zip,
-                  )
-                    ? await this.createLocation(tx, dto.location)
-                    : undefined;
+                  );
+
+                const facilityAddressId = hasLocation
+                  ? (
+                      await tx.location.create({
+                        data: dto.location!,
+                        select: { id: true },
+                      })
+                    ).id
+                  : undefined;
 
                 const updateData: Prisma.StopLogUpdateInput = {
-                  ...(!activeLog.departed_at && { [config.field]: now }),
+                  ...(config.field &&
+                    activeLog &&
+                    !activeLog[config.field as keyof typeof activeLog] && {
+                      [config.field]: now,
+                    }),
                   ...(bol_number !== undefined && {
                     bol_number: bol_number.trim() || null,
                   }),
@@ -522,7 +488,16 @@ export class StopLogService {
         });
       });
     } catch (error) {
-      await this.deleteUploadedAttachments(uploadedAttachments);
+      for (const attachment of uploadedAttachments) {
+        try {
+          await NajimStorage.delete(attachment.file_url);
+        } catch (delError) {
+          console.log(
+            'Error during attachment deletion stoplog DTO:',
+            delError,
+          );
+        }
+      }
       throw error;
     }
   }
@@ -652,7 +627,16 @@ export class StopLogService {
         },
         arrival_location: true,
         facility_address: true,
-        attachments: true,
+        attachments: {
+          select: {
+            id: true,
+            file_name: true,
+            file_url: true,
+            mime_type: true,
+            type: true,
+            size_bytes: true,
+          },
+        },
         claim: {
           include: {
             claim_events: {
@@ -718,7 +702,10 @@ export class StopLogService {
     const payableTimeFormatted = payableTime.toFixed(2);
     const totalAmount = payableTime * (stoplog.user?.rate_per_hour || 0);
 
-    const address = this.getStopLogAddress(stoplog);
+    const address =
+      stoplog.facility_address?.address ||
+      stoplog.arrival_location?.address ||
+      null;
 
     const gps_coordinates = stoplog.arrival_location
       ? `${stoplog.arrival_location.lat}, ${stoplog.arrival_location.lng}`
@@ -745,10 +732,8 @@ export class StopLogService {
         detention: totalAmount.toFixed(2),
         lost: totalAmount.toFixed(2),
         attachments: stoplog.attachments.map((att) => ({
-          id: att.id,
-          file_name: att.file_name,
-          file_url: att.file_url,
-          type: att.type,
+          ...att,
+          file_url: NajimStorage.url(att.file_url),
         })),
         claim: stoplog.claim
           ? {
@@ -779,7 +764,15 @@ export class StopLogService {
     const { period = Period.TODAY } = query;
 
     const now = new Date();
-    const periodStart = this.getHomeDataPeriodStart(period, now);
+    const periodStart = new Date(now);
+    if (period === Period.TODAY) periodStart.setHours(0, 0, 0, 0);
+    else if (period === Period.WEEK)
+      periodStart.setDate(periodStart.getDate() - 7);
+    else if (period === Period.MONTH)
+      periodStart.setMonth(periodStart.getMonth() - 1);
+    else if (period === Period.YEAR)
+      periodStart.setFullYear(periodStart.getFullYear() - 1);
+
     const where: Prisma.StopLogWhereInput = {
       user_id,
       departed_at: { not: null }, // Only calculate for completed stops

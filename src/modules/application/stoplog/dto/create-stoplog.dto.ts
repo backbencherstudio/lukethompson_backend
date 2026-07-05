@@ -58,6 +58,7 @@ export enum LogStopStep {
   DOCK_IN_TIME = 'dock_in_time',
   COMPLETED_TIME = 'completed_time',
   DEPARTURE_TIME = 'departure_time',
+  UPLOAD_DOCUMENTS = 'upload_documents',
 }
 
 export class PutStopLogDto {

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -6,6 +6,8 @@ import { UserRepository } from '../../../common/repository/user/user.repository'
 import appConfig from '../../../config/app.config';
 import { NajimStorage } from '../../../common/lib/Disk/NajimStorage';
 import { DateHelper } from '../../../common/helper/date.helper';
+import { QueryUserDto } from './dto/query-user.dto';
+import { Prisma } from 'prisma/generated/browser';
 
 @Injectable()
 export class UserService {
@@ -15,148 +17,115 @@ export class UserService {
   ) {}
 
   async create(createUserDto: CreateUserDto) {
-    try {
-      const user = await this.userRepository.createUser(createUserDto);
+    const user = await this.userRepository.createUser(createUserDto);
 
-      return {
-        success: true,
-        message: 'User created successfully',
-        data: user,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
-    }
+    return {
+      success: true,
+      message: 'User created successfully',
+      data: user,
+    };
   }
 
-  async findAll({
-    search,
-    page = 1,
-    limit = 10,
-    type = 'user',
-  }: {
-    search?: string;
-    page?: number;
-    limit?: number;
-    type?: string;
-  }) {
-    try {
-      const skip = (page - 1) * limit;
-      const where_condition: any = {
-        type: type,
-      };
+  async findAll(query: QueryUserDto) {
+    const { search, page = 1, limit = 10, type, status } = query;
+    const skip = (page - 1) * limit;
+    const where_condition: Prisma.UserWhereInput = {
+      ...(type !== undefined && { type }),
+      ...(status !== undefined && { status }),
+    };
 
-      if (search) {
-        where_condition['OR'] = [
-          { name: { contains: search, mode: 'insensitive' } },
-          { email: { contains: search, mode: 'insensitive' } },
-        ];
-      }
-
-      const [total, users] = await Promise.all([
-        this.prisma.user.count({ where: where_condition }),
-        this.prisma.user.findMany({
-          where: where_condition,
-          skip: Number(skip),
-          take: Number(limit),
-          orderBy: { created_at: 'desc' },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-            phone_number: true,
-            status: true,
-            created_at: true,
-            _count: {
-              select: { stop_logs: true },
-            },
-          },
-        }),
-      ]);
-
-      const formattedUsers = users.map((user) => {
-        let statusLabel = 'Active';
-        if (user.status === 0) statusLabel = 'Pending';
-        if (user.status === -1) statusLabel = 'Banned';
-
-        return {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          avatar: user.avatar,
-          phone_number: user.phone_number,
-          subscription_plan: 'Free Plan', // Defaulting to Free Plan as no specific plan model found
-          total_stops: user._count.stop_logs,
-          created_at: user.created_at,
-          status: statusLabel,
-        };
-      });
-
-      return {
-        success: true,
-        data: formattedUsers,
-        meta_data: {
-          total,
-          page: Number(page),
-          limit: Number(limit),
-        },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
+    if (search) {
+      where_condition.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+      ];
     }
-  }
 
-  async findOne(id: string) {
-    try {
-      const user = await this.prisma.user.findUnique({
-        where: {
-          id: id,
-        },
+    const [total, users] = await Promise.all([
+      this.prisma.user.count({ where: where_condition }),
+      this.prisma.user.findMany({
+        where: where_condition,
+        skip: Number(skip),
+        take: Number(limit),
+        orderBy: { created_at: 'desc' },
         select: {
           id: true,
           name: true,
           email: true,
-          type: true,
-          phone_number: true,
-          approved_at: true,
-          created_at: true,
-          updated_at: true,
           avatar: true,
-          billing_id: true,
+          phone_number: true,
+          status: true,
+          created_at: true,
+          _count: {
+            select: { stop_logs: true },
+          },
         },
-      });
+      }),
+    ]);
 
-      // add avatar url to user
-      if (user.avatar) {
-        user['avatar'] = NajimStorage.url(
-          appConfig().storageUrl.avatar + user.avatar,
-          { signed: true },
-        );
-      }
-
-      if (!user) {
-        return {
-          success: false,
-          message: 'User not found',
-        };
-      }
+    const formattedUsers = users.map((user) => {
+      let statusLabel = 'Active';
+      if (user.status === 0) statusLabel = 'Pending';
+      if (user.status === -1) statusLabel = 'Banned';
 
       return {
-        success: true,
-        data: user,
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar,
+        phone_number: user.phone_number,
+        subscription_plan: 'Free Plan', // Defaulting to Free Plan as no specific plan model found
+        total_stops: user._count.stop_logs,
+        created_at: user.created_at,
+        status: statusLabel,
       };
-    } catch (error) {
-      return {
-        success: false,
-        message: error.message,
-      };
+    });
+
+    return {
+      success: true,
+      data: formattedUsers,
+      meta_data: {
+        total,
+        page: Number(page),
+        limit: Number(limit),
+      },
+    };
+  }
+
+  async findOne(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: id,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        type: true,
+        phone_number: true,
+        approved_at: true,
+        created_at: true,
+        avatar: true,
+      },
+    });
+
+    // add avatar url to user
+    if (user?.avatar) {
+      user.avatar = NajimStorage.url(
+        appConfig().storageUrl.avatar + user.avatar,
+        { signed: true },
+      );
     }
+
+    if (!user) {
+      throw new InternalServerErrorException('Failed to fetch user details.');
+    }
+
+    return {
+      success: true,
+      message: 'User details fetched successfully',
+      data: user,
+    };
   }
 
   async approve(id: string) {
