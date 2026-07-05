@@ -24,6 +24,7 @@ import {
   AdminUserListResponseDto,
   AdminUserDetailResponseDto,
   AdminUserGenericSuccessDto,
+  AdminUserStatsResponseDto,
 } from './dto/response-user.dto';
 import { Role } from '../../../common/guard/role/role.enum';
 import { Roles } from '../../../common/guard/role/roles.decorator';
@@ -134,6 +135,7 @@ export class UserController {
   @ApiResponse({
     status: 200,
     description: 'Stats summary retrieved successfully.',
+    type: AdminUserStatsResponseDto,
   })
   @Get('stats')
   getStats() {

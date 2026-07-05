@@ -6,6 +6,7 @@ import { Roles } from '../../../common/guard/role/roles.decorator';
 import { Role } from '../../../common/guard/role/role.enum';
 import { ShipperService } from './shipper.service';
 import { QueryShipperRatingDto } from './dto/query-shipper.dto';
+import { ShipperRatingListResponseDto, ShipperStatsResponseDto } from './dto/response-shipper.dto';
 
 @ApiBearerAuth('admin_token')
 @ApiTags('Admin Shipper')
@@ -19,6 +20,7 @@ export class ShipperController {
   @ApiResponse({
     status: 200,
     description: 'List of shipper ratings retrieved successfully.',
+    type: ShipperRatingListResponseDto,
   })
   @Get('ratings')
   async getRatings(@Query() query: QueryShipperRatingDto) {
@@ -29,6 +31,7 @@ export class ShipperController {
   @ApiResponse({
     status: 200,
     description: 'Shipper statistics retrieved successfully.',
+    type: ShipperStatsResponseDto,
   })
   @Get('stats')
   async getStats() {

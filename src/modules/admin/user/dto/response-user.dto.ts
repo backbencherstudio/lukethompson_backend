@@ -125,3 +125,25 @@ export class AdminUserGenericSuccessDto {
   @ApiProperty({ example: 'Operation completed successfully' })
   message: string;
 }
+
+export class AdminUserStatsDataDto {
+  @ApiProperty({ example: 100 })
+  total_users: number;
+
+  @ApiProperty({ example: 12000 })
+  monthly_revenue: number;
+
+  @ApiProperty({ example: 15 })
+  stop_log_today: number;
+
+  @ApiProperty({ example: 25 })
+  total_paid_subscribers: number;
+}
+
+export class AdminUserStatsResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({ type: AdminUserStatsDataDto })
+  data: AdminUserStatsDataDto;
+}
