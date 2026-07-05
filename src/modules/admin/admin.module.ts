@@ -7,6 +7,7 @@ import { NotificationModule } from './notification/notification.module';
 import { StopLogModule } from './stoplog/stoplog.module';
 import { SettingModule } from './setting/setting.module';
 import { OverviewModule } from './overview/overview.module';
+import { ShipperModule } from './shipper/shipper.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { OverviewModule } from './overview/overview.module';
     StopLogModule,
     SettingModule,
     OverviewModule,
+    ShipperModule,
   ],
 })
 export class AdminModule {}

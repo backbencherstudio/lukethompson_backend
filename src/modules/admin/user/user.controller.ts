@@ -127,6 +127,20 @@ export class UserController {
   }
 
   @ApiOperation({
+    summary: 'Retrieve general stats summary',
+    description:
+      'Fetches total users, monthly revenue, stop logs today, and total paid subscribers.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Stats summary retrieved successfully.',
+  })
+  @Get('stats')
+  getStats() {
+    return this.userService.getStats();
+  }
+
+  @ApiOperation({
     summary: 'Retrieve user by ID',
     description:
       'Fetches detailed information for a specific user by their ID.',

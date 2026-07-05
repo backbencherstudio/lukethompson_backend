@@ -240,4 +240,47 @@ export class UserService {
       message: 'User unbanned successfully',
     };
   }
+
+  async getStats() {
+    try {
+      const now = new Date();
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      const startOfToday = new Date(now);
+      startOfToday.setHours(0, 0, 0, 0);
+
+      const [totalUsers, monthlyRevenueResult, stopsToday, paidSubscribers] =
+        await Promise.all([
+          this.prisma.user.count({ where: { type: 'user' } }),
+          this.prisma.paymentTransaction.aggregate({
+            where: {
+              created_at: { gte: startOfMonth },
+              status: 'succeeded',
+            },
+            _sum: { amount: true },
+          }),
+          this.prisma.stopLog.count({
+            where: { created_at: { gte: startOfToday } },
+          }),
+          this.prisma.userSubscription.count({
+            where: { status: 'ACTIVE' },
+          }),
+        ]);
+
+      return {
+        success: true,
+        data: {
+          total_users: totalUsers,
+          monthly_revenue: Number(monthlyRevenueResult._sum?.amount || 0),
+          stop_log_today: stopsToday,
+          total_paid_subscribers: paidSubscribers,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message,
+      };
+    }
+  }
 }
