@@ -183,37 +183,61 @@ export class UserService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
-    try {
-      const user = await this.userRepository.updateUser(id, updateUserDto);
+    const user = await this.userRepository.updateUser(id, updateUserDto);
 
-      if (user.success) {
-        return {
-          success: user.success,
-          message: user.message,
-        };
-      } else {
-        return {
-          success: user.success,
-          message: user.message,
-        };
-      }
-    } catch (error) {
+    if (user.success) {
       return {
-        success: false,
-        message: error.message,
+        success: user.success,
+        message: user.message,
       };
+    } else {
+      throw new InternalServerErrorException(user.message);
     }
   }
 
   async remove(id: string) {
-    try {
-      const user = await this.userRepository.deleteUser(id);
-      return user;
-    } catch (error) {
+    const user = await this.userRepository.deleteUser(id);
+    if (user.success) {
       return {
-        success: false,
-        message: error.message,
+        success: user.success,
+        message: user.message,
       };
+    } else {
+      throw new InternalServerErrorException(user.message);
     }
+  }
+
+  async bannedUser(user_id: string) {
+    const user = await this.prisma.user.update({
+      where: {
+        id: user_id,
+      },
+      data: {
+        status: -1,
+      },
+    });
+    if (!user)
+      throw new InternalServerErrorException('Failed to update user status.');
+    return {
+      success: true,
+      message: 'User banned successfully',
+    };
+  }
+
+  async unBanUser(user_id: string) {
+    const user = await this.prisma.user.update({
+      where: {
+        id: user_id,
+      },
+      data: {
+        status: 1,
+      },
+    });
+    if (!user)
+      throw new InternalServerErrorException('Failed to update user status.');
+    return {
+      success: true,
+      message: 'User unbanned successfully',
+    };
   }
 }

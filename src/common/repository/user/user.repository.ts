@@ -267,12 +267,14 @@ export class UserRepository {
       name,
       email,
       password,
+      phone_number,
       role_id = null,
       type = 'user',
     }: {
       name?: string;
       email?: string;
       password?: string;
+      phone_number?: string;
       role_id?: string;
       type?: string;
     },
@@ -302,6 +304,9 @@ export class UserRepository {
           password,
           appConfig().security.salt,
         );
+      }
+      if (phone_number) {
+        data['phone_number'] = phone_number;
       }
 
       if (ArrayHelper.inArray(type, Object.values(Role))) {
