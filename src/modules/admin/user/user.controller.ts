@@ -169,12 +169,12 @@ export class UserController {
     return this.userService.remove(id);
   }
 
-  @Patch(':user_id/banned')
+  @Patch(':user_id/ban')
   bannedUser(@Param('user_id') user_id: string) {
     return this.userService.bannedUser(user_id);
   }
 
-  @Patch(':user_id/unbanned')
+  @Patch(':user_id/unban')
   unBanUser(@Param('user_id') user_id: string) {
     return this.userService.unBanUser(user_id);
   }
