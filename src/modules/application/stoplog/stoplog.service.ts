@@ -22,6 +22,8 @@ import {
 } from 'prisma/generated/client';
 import { NajimStorage } from 'src/common/lib/Disk/NajimStorage';
 import appConfig from 'src/config/app.config';
+import { Queue } from 'bullmq';
+import { InjectQueue } from '@nestjs/bullmq';
 
 type StepState = Pick<
   Prisma.StopLogUncheckedCreateInput,
@@ -30,7 +32,10 @@ type StepState = Pick<
 
 @Injectable()
 export class StopLogService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectQueue('pdf-queue') private readonly pdfQueue: Queue,
+  ) {}
 
   private readonly STEP_CONFIG = {
     [LogStopStep.ARRIVAL_TIME]: { prev: null, field: 'arrived_at' },
@@ -463,7 +468,7 @@ export class StopLogService {
           );
           const totalAmount = payableTime * (user.rate_per_hour || 0);
 
-          await tx.claim.upsert({
+          const claim = await tx.claim.upsert({
             where: { stop_log_id: stoplog.id },
             create: {
               status: ClaimStatus.DRAFT,
@@ -476,6 +481,16 @@ export class StopLogService {
               claim_amount: Math.round(totalAmount),
             },
           });
+
+          // Trigger async PDF generation using BullMQ
+          try {
+            await this.pdfQueue.add('generateDetentionSummary', {
+              stopLogId: stoplog.id,
+              claimId: claim.id,
+            });
+          } catch (queueError) {
+            console.error('Failed to enqueue PDF generation job:', queueError);
+          }
         }
 
         return ResponseHelper.success({

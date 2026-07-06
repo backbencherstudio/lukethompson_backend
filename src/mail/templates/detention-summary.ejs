@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GetDockPay Detention Claim</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    body {
+      background-color: #0f172a;
+      color: #f1f5f9;
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 40px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      background-color: #0f172a;
+    }
+
+    /* Header Styling */
+    .header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    .logo-icon {
+      width: 48px;
+      height: 48px;
+      background-color: #1e293b;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .logo-icon svg {
+      width: 28px;
+      height: 28px;
+      color: #10b981;
+    }
+
+    .header-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand-name {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+    }
+
+    .brand-name span {
+      color: #10b981;
+    }
+
+    .tagline {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-top: 2px;
+    }
+
+    /* Amount Card */
+    .amount-card {
+      border: 1px solid #10b981;
+      background-color: #111827;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 28px;
+    }
+
+    .amount-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #94a3b8;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .amount-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: #10b981;
+      margin-bottom: 8px;
+    }
+
+    .amount-details {
+      font-size: 13px;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 4px;
+      height: 4px;
+      background-color: #475569;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    /* Section Titles */
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 12px;
+      margin-top: 0;
+    }
+
+    /* Details Table/Container */
+    .details-card {
+      background-color: #1e293b;
+      border-radius: 16px;
+      padding: 8px 16px;
+      margin-bottom: 28px;
+      border: 1px solid #334155;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #334155;
+    }
+
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .detail-label {
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    .detail-value {
+      font-size: 14px;
+      font-weight: 500;
+      color: #ffffff;
+      text-align: right;
+    }
+
+    .detail-value.green {
+      color: #10b981;
+      font-weight: 600;
+    }
+
+    .detail-value.blue {
+      color: #3b82f6;
+      text-decoration: underline;
+      cursor: pointer;
+    }
+
+    /* Proof Package Buttons */
+    .proof-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .proof-button {
+      display: flex;
+      align-items: center;
+      background-color: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 14px 16px;
+      text-decoration: none;
+      color: #3b82f6;
+      font-weight: 500;
+      font-size: 14px;
+      transition: background-color 0.2s;
+    }
+
+    .proof-button:hover {
+      background-color: #334155;
+    }
+
+    .proof-button .icon {
+      width: 18px;
+      height: 18px;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+
+    .proof-button .file-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 01.293.707V15a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17h14" />
+        </svg>
+      </div>
+      <div class="header-text">
+        <div class="brand-name">GET<span>DOCK</span>PAY</div>
+        <div class="tagline">Review details before sending</div>
+      </div>
+    </div>
+
+    <!-- Claim Amount Card -->
+    <div class="amount-card">
+      <div class="amount-title">Detention Claim Amount</div>
+      <div class="amount-value"><%= claimAmount %></div>
+      <div class="amount-details">
+        <span><%= billableDurationStr %> billable</span>
+        <span class="dot"></span>
+        <span>$<%= detentionRate %>/hr detention rate</span>
+        <span class="dot"></span>
+        <span><%= freeWaitTimeStr %> free time</span>
+      </div>
+    </div>
+
+    <!-- Claim Details -->
+    <h3 class="section-title">Claim Details</h3>
+    <div class="details-card">
+      <div class="detail-row">
+        <span class="detail-label">Facility</span>
+        <span class="detail-value"><%= facilityName %></span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Arrival - Departure</span>
+        <span class="detail-value"><%= arrivalTimeStr %> -> <%= departureTimeStr %></span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Billable Detention</span>
+        <span class="detail-value green"><%= billableDurationStr %></span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">BOL Number</span>
+        <span class="detail-value"><%= bolNumber || 'N/A' %></span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">GPS Coordinates</span>
+        <span class="detail-value blue"><%= gpsStr %></span>
+      </div>
+    </div>
+
+    <!-- Proof Package -->
+    <h3 class="section-title">Proof Package</h3>
+    <div class="proof-list">
+      <% if (attachments && attachments.length > 0) { %>
+        <% attachments.forEach(function(att) { %>
+          <a href="<%= att.file_url %>" class="proof-button" target="_blank">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+            </svg>
+            <span class="file-name"><%= att.file_name || 'Attachment' %></span>
+          </a>
+        <% }); %>
+      <% } else { %>
+        <div style="color: #94a3b8; font-size: 14px;">No attachments uploaded</div>
+      <% } %>
+    </div>
+  </div>
+</body>
+</html>
