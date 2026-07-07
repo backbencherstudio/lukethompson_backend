@@ -66,6 +66,18 @@ export class MailProcessor extends WorkerHost {
             context: job.data.context,
           });
           break;
+        case 'sendClaimSubmission':
+          this.logger.log('Sending claim submission email');
+          await this.mailerService.sendMail({
+            to: job.data.to,
+            cc: job.data.cc,
+            from: job.data.from,
+            subject: job.data.subject,
+            template: job.data.template,
+            context: job.data.context,
+            attachments: job.data.attachments,
+          });
+          break;
         default:
           this.logger.log('Unknown job name');
           return;

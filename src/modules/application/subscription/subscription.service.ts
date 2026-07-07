@@ -20,18 +20,60 @@ export class SubscriptionService {
       orderBy: {
         sort_order: 'asc',
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        price: true,
+        currency: true,
+        interval: true,
+        status: true,
+        sort_order: true,
+        product_id: true,
+        price_id: true,
+        apple_product_id: true,
+        google_product_id: true,
+        created_at: true,
+        updated_at: true,
         features: {
-          include: {
-            feature: true,
+          select: {
+            enabled: true,
+            limit_value: true,
+            feature: {
+              select: {
+                id: true,
+                key: true,
+                name: true,
+                description: true,
+                type: true,
+                unit: true,
+              },
+            },
           },
         },
       },
     });
 
+    const formattedPlans = plans.map((plan) => ({
+      ...plan,
+      price: Number(plan.price),
+      features: plan.features.map((f) => ({
+        id: f.feature?.id,
+        key: f.feature?.key,
+        name: f.feature?.name,
+        description: f.feature?.description,
+        type: f.feature?.type,
+        unit: f.feature?.unit,
+        limit_value: f.limit_value,
+        enabled: f.enabled,
+      })),
+    }));
+
     return {
       success: true,
-      data: plans,
+      message: 'Active subscription plans retrieved successfully',
+      data: formattedPlans,
     };
   }
 
@@ -43,12 +85,47 @@ export class SubscriptionService {
           in: ['ACTIVE', 'TRIALING'],
         },
       },
-      include: {
+      select: {
+        id: true,
+        status: true,
+        started_at: true,
+        expires_at: true,
+        canceled_at: true,
+        purchase_provider: true,
+        purchase_id: true,
+        created_at: true,
+        updated_at: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            avatar: true,
+            type: true,
+          },
+        },
         plan: {
-          include: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            price: true,
+            currency: true,
+            interval: true,
             features: {
-              include: {
-                feature: true,
+              select: {
+                enabled: true,
+                limit_value: true,
+                feature: {
+                  select: {
+                    id: true,
+                    key: true,
+                    name: true,
+                    description: true,
+                    type: true,
+                    unit: true,
+                  },
+                },
               },
             },
           },
@@ -59,9 +136,32 @@ export class SubscriptionService {
       },
     });
 
+    const formattedSub = subscription
+      ? {
+          ...subscription,
+          plan: subscription.plan
+            ? {
+                ...subscription.plan,
+                price: Number(subscription.plan.price),
+                features: subscription.plan.features.map((f) => ({
+                  id: f.feature?.id,
+                  key: f.feature?.key,
+                  name: f.feature?.name,
+                  description: f.feature?.description,
+                  type: f.feature?.type,
+                  unit: f.feature?.unit,
+                  limit_value: f.limit_value,
+                  enabled: f.enabled,
+                })),
+              }
+            : null,
+        }
+      : null;
+
     return {
       success: true,
-      data: subscription || null,
+      message: 'Current user subscription retrieved successfully',
+      data: formattedSub,
     };
   }
 

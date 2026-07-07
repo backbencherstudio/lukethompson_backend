@@ -6,10 +6,11 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ResponseHelper } from 'src/common/helper/response.helper';
 import { QueryClaimDto, QueryClaimStatus } from './dto/query-claim.dto';
-import { ClaimStatus, ClaimEventType, Prisma } from 'prisma/generated/client';
-import { MarkPaidDto, MarkDeniedDto } from './dto/update-claim.dto';
+import { ClaimStatus, ClaimEventType, Prisma, AttachmentType } from 'prisma/generated/client';
+import { MarkPaidDto, MarkDeniedDto, SubmitClaimDto } from './dto/update-claim.dto';
 import { MailService } from 'src/mail/mail.service';
 import { SendFollowUpDto } from './dto/send-follow-up.dto';
+import { NajimStorage } from 'src/common/lib/Disk/NajimStorage';
 
 @Injectable()
 export class ClaimService {
@@ -406,6 +407,193 @@ export class ClaimService {
     return ResponseHelper.success({
       message: `${templateLevelName} follow-up sent successfully`,
       data: updatedClaim,
+    });
+  }
+
+  async submitClaim(id: string, dto: SubmitClaimDto, user_id: string) {
+    // 1. Verify recipient email exists in the database User table
+    const recipientUser = await this.prisma.user.findFirst({
+      where: { email: { equals: dto.recipient_email, mode: 'insensitive' } },
+    });
+    if (!recipientUser) {
+      throw new BadRequestException('Recipient email does not exist in the database');
+    }
+
+    // 2. Fetch the claim with stop log and user details
+    const claim = await this.prisma.claim.findFirst({
+      where: { id, user_id },
+      include: {
+        stop_log: {
+          include: {
+            arrival_location: true,
+            attachments: true,
+          },
+        },
+        user: true,
+      },
+    });
+
+    if (!claim) {
+      throw new NotFoundException('Claim not found');
+    }
+
+    // 3. Retrieve the generated DETENTION_SUMMARY PDF attachment
+    const pdfAttachment = await this.prisma.attachment.findFirst({
+      where: {
+        claim_id: claim.id,
+        type: AttachmentType.DETENTION_SUMMARY,
+      },
+    });
+    if (!pdfAttachment) {
+      throw new BadRequestException(
+        'Detention summary PDF is still generating. Please try again in a few seconds.',
+      );
+    }
+
+    // 4. Generate pre-signed URL for the PDF (valid for 2 years)
+    const pdfUrl = NajimStorage.url(pdfAttachment.file_url, {
+      signed: true,
+      expires: 63072000,
+    });
+
+    // Helper functions for time/money calculations
+    const arrived = new Date(claim.stop_log.arrived_at).getTime();
+    const departed = claim.stop_log.departed_at
+      ? new Date(claim.stop_log.departed_at).getTime()
+      : new Date().getTime();
+    const totalTime = Math.max(0, (departed - arrived) / (1000 * 60 * 60));
+    const payableTime = Math.max(0, totalTime - (claim.user?.free_wait_time || 0));
+    const totalAmount = payableTime * (claim.user?.rate_per_hour || 0);
+
+    const formatDuration = (hoursDecimal: number): string => {
+      const hours = Math.floor(hoursDecimal);
+      const minutes = Math.round((hoursDecimal - hours) * 60);
+      if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+      if (hours > 0) return `${hours}h`;
+      return `${minutes}m`;
+    };
+
+    const formatTime = (date: Date): string => {
+      return date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      });
+    };
+
+    const claimAmountFormatted = new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(Math.round(totalAmount));
+
+    let claimMessage = '';
+
+    // 5. Handle EMAIL submission method
+    if (dto.claim_method.toUpperCase() === 'EMAIL') {
+      const cc = [];
+      if (dto.broker_email && dto.broker_email !== dto.recipient_email) {
+        cc.push(dto.broker_email);
+      } else if (
+        claim.stop_log?.broker_email &&
+        claim.stop_log.broker_email !== dto.recipient_email
+      ) {
+        cc.push(claim.stop_log.broker_email);
+      }
+
+      const gpsStr =
+        claim.stop_log?.arrival_location?.lat && claim.stop_log?.arrival_location?.lng
+          ? `${Number(claim.stop_log.arrival_location.lat).toFixed(4)}, ${Number(claim.stop_log.arrival_location.lng).toFixed(4)}`
+          : 'N/A';
+
+      const otherAttachments = claim.stop_log.attachments
+        .filter((att) => att.type !== AttachmentType.DETENTION_SUMMARY)
+        .map((att) => ({
+          file_name: att.file_name || 'Attachment',
+          file_url: NajimStorage.url(att.file_url, { signed: true, expires: 63072000 }),
+        }));
+
+      const bolSuffix = claim.stop_log?.bol_number
+        ? ` - BOL: ${claim.stop_log.bol_number}`
+        : '';
+
+      const subject = `Detention Claim Submission${bolSuffix}`;
+
+      await this.mailService.sendClaimSubmission({
+        to: dto.recipient_email,
+        cc: cc.length > 0 ? cc : undefined,
+        subject,
+        template: 'detention-summary',
+        context: {
+          claimAmount: claimAmountFormatted,
+          billableDurationStr: formatDuration(payableTime),
+          detentionRate: claim.user?.rate_per_hour || 0,
+          freeWaitTimeStr: formatDuration(claim.user?.free_wait_time || 0),
+          facilityName: claim.stop_log.facility_name,
+          arrivalTimeStr: formatTime(claim.stop_log.arrived_at),
+          departureTimeStr: claim.stop_log.departed_at
+            ? formatTime(claim.stop_log.departed_at)
+            : 'N/A',
+          bolNumber: claim.stop_log.bol_number,
+          gpsStr,
+          attachments: otherAttachments,
+        },
+        attachments: [
+          {
+            filename: pdfAttachment.file_name || 'detention-summary.pdf',
+            path: pdfUrl,
+            contentType: 'application/pdf',
+          },
+        ],
+      });
+    } else {
+      // 6. Handle MESSAGE method: generate and return pre-formatted message text
+      claimMessage = `Hello,
+
+This is a formal request for payment of the detention claim of ${claimAmountFormatted} for the stop log at ${claim.stop_log?.facility_name || 'facility'}.
+
+Claim Details:
+- BOL Number: ${claim.stop_log?.bol_number || 'N/A'}
+- Arrived At: ${claim.stop_log?.arrived_at}
+- Departed At: ${claim.stop_log?.departed_at || 'N/A'}
+- Billable Detention: ${formatDuration(payableTime)}
+
+You can view the detention summary PDF here:
+${pdfUrl}`;
+    }
+
+    // 7. Perform sequential database updates inside transaction
+    const updatedClaim = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.claim.update({
+        where: { id: claim.id },
+        data: {
+          status: ClaimStatus.SUBMITTED,
+          sent_at: new Date(),
+          recipient_email: dto.recipient_email,
+          send_method: dto.claim_method.toUpperCase(),
+        },
+      });
+
+      await tx.claimEvent.create({
+        data: {
+          claim_id: claim.id,
+          type: ClaimEventType.CLAIM_SENT,
+          description: `Claim submitted via ${dto.claim_method} to ${dto.recipient_email}`,
+        },
+      });
+
+      return updated;
+    });
+
+    return ResponseHelper.success({
+      message: dto.claim_method.toUpperCase() === 'EMAIL'
+        ? 'Claim submitted successfully via email'
+        : 'Claim message generated successfully',
+      data: {
+        claim_id: updatedClaim.id,
+        status: updatedClaim.status,
+        sent_at: updatedClaim.sent_at,
+        ...(claimMessage ? { claim_message: claimMessage } : {}),
+      },
     });
   }
 }

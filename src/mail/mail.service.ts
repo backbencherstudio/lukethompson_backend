@@ -100,4 +100,28 @@ export class MailService {
       console.log(error);
     }
   }
+
+  async sendClaimSubmission(params: {
+    to: string;
+    cc?: string[];
+    subject: string;
+    template: string;
+    context: any;
+    attachments?: any[];
+  }) {
+    try {
+      const from = `${process.env.APP_NAME} <${appConfig().mail.from}>`;
+      await this.queue.add('sendClaimSubmission', {
+        to: params.to,
+        cc: params.cc,
+        from,
+        subject: params.subject,
+        template: params.template,
+        context: params.context,
+        attachments: params.attachments,
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  }
 }

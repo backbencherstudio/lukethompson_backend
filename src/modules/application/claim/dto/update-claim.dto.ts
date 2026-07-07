@@ -52,3 +52,30 @@ export class MarkDeniedDto {
   @IsString()
   denial_reason: string;
 }
+
+export class SubmitClaimDto {
+  @ApiProperty({
+    example: 'EMAIL',
+    enum: ['EMAIL', 'MESSAGE'],
+    description: 'Submission method: EMAIL or MESSAGE',
+  })
+  @IsNotEmpty()
+  @IsString()
+  claim_method: string;
+
+  @ApiProperty({
+    example: 'broker@example.com',
+    description: 'The email address of the recipient',
+  })
+  @IsNotEmpty()
+  @IsString()
+  recipient_email: string;
+
+  @ApiPropertyOptional({
+    example: 'broker-cc@example.com',
+    description: 'Broker email to CC (optional)',
+  })
+  @IsOptional()
+  @IsString()
+  broker_email?: string;
+}

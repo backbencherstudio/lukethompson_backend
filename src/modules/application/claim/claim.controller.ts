@@ -20,7 +20,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { MarkPaidDto, MarkDeniedDto } from './dto/update-claim.dto';
+import { MarkPaidDto, MarkDeniedDto, SubmitClaimDto } from './dto/update-claim.dto';
 import { SendFollowUpDto } from './dto/send-follow-up.dto';
 import {
   ClaimListResponseDto,
@@ -107,5 +107,24 @@ export class ClaimController {
     @GetUser('id') user_id: string,
   ) {
     return this.claimService.sendFollowUp(id, dto, user_id);
+  }
+
+  @ApiOperation({
+    summary: 'Submit a claim',
+    description:
+      'Submits a claim via EMAIL (sends notification to recipient and CCs broker, attaching detention summary PDF) or via MESSAGE (returns formatted message content). Validates that the recipient email exists in the system.',
+  })
+  @ApiBody({ type: SubmitClaimDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Claim submitted successfully',
+  })
+  @Post(':id/submit')
+  submitClaim(
+    @Param('id') id: string,
+    @Body() dto: SubmitClaimDto,
+    @GetUser('id') user_id: string,
+  ) {
+    return this.claimService.submitClaim(id, dto, user_id);
   }
 }

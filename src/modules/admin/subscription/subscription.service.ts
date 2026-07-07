@@ -35,47 +35,156 @@ export class SubscriptionService {
             }
           : undefined,
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        price: true,
+        currency: true,
+        interval: true,
+        status: true,
+        sort_order: true,
+        product_id: true,
+        price_id: true,
+        apple_product_id: true,
+        google_product_id: true,
+        created_at: true,
+        updated_at: true,
         features: {
-          include: {
-            feature: true,
+          select: {
+            enabled: true,
+            limit_value: true,
+            feature: {
+              select: {
+                id: true,
+                key: true,
+                name: true,
+                description: true,
+                type: true,
+                unit: true,
+              },
+            },
           },
         },
       },
     });
 
+    const formattedPlan = {
+      ...plan,
+      price: Number(plan.price),
+      features: plan.features.map((f) => ({
+        id: f.feature?.id,
+        key: f.feature?.key,
+        name: f.feature?.name,
+        description: f.feature?.description,
+        type: f.feature?.type,
+        unit: f.feature?.unit,
+        limit_value: f.limit_value,
+        enabled: f.enabled,
+      })),
+    };
+
     return {
       success: true,
       message: 'Subscription plan created successfully',
-      data: plan,
+      data: formattedPlan,
     };
   }
 
   async findAllPlans() {
     const plans = await this.prisma.subscriptionPlan.findMany({
       orderBy: { sort_order: 'asc' },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        price: true,
+        currency: true,
+        interval: true,
+        status: true,
+        sort_order: true,
+        product_id: true,
+        price_id: true,
+        apple_product_id: true,
+        google_product_id: true,
+        created_at: true,
+        updated_at: true,
         features: {
-          include: {
-            feature: true,
+          select: {
+            enabled: true,
+            limit_value: true,
+            feature: {
+              select: {
+                id: true,
+                key: true,
+                name: true,
+                description: true,
+                type: true,
+                unit: true,
+              },
+            },
           },
         },
       },
     });
 
+    const formattedPlans = plans.map((plan) => ({
+      ...plan,
+      price: Number(plan.price),
+      features: plan.features.map((f) => ({
+        id: f.feature?.id,
+        key: f.feature?.key,
+        name: f.feature?.name,
+        description: f.feature?.description,
+        type: f.feature?.type,
+        unit: f.feature?.unit,
+        limit_value: f.limit_value,
+        enabled: f.enabled,
+      })),
+    }));
+
     return {
       success: true,
-      data: plans,
+      message: 'Subscription plans retrieved successfully',
+      data: formattedPlans,
     };
   }
 
   async findOnePlan(id: string) {
     const plan = await this.prisma.subscriptionPlan.findUnique({
       where: { id },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        price: true,
+        currency: true,
+        interval: true,
+        status: true,
+        sort_order: true,
+        product_id: true,
+        price_id: true,
+        apple_product_id: true,
+        google_product_id: true,
+        created_at: true,
+        updated_at: true,
         features: {
-          include: {
-            feature: true,
+          select: {
+            enabled: true,
+            limit_value: true,
+            feature: {
+              select: {
+                id: true,
+                key: true,
+                name: true,
+                description: true,
+                type: true,
+                unit: true,
+              },
+            },
           },
         },
       },
@@ -85,9 +194,25 @@ export class SubscriptionService {
       throw new NotFoundException('Subscription plan not found');
     }
 
+    const formattedPlan = {
+      ...plan,
+      price: Number(plan.price),
+      features: plan.features.map((f) => ({
+        id: f.feature?.id,
+        key: f.feature?.key,
+        name: f.feature?.name,
+        description: f.feature?.description,
+        type: f.feature?.type,
+        unit: f.feature?.unit,
+        limit_value: f.limit_value,
+        enabled: f.enabled,
+      })),
+    };
+
     return {
       success: true,
-      data: plan,
+      message: 'Subscription plan details retrieved successfully',
+      data: formattedPlan,
     };
   }
 
@@ -117,19 +242,60 @@ export class SubscriptionService {
     const updatedPlan = await this.prisma.subscriptionPlan.update({
       where: { id },
       data: updateData,
-      include: {
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        price: true,
+        currency: true,
+        interval: true,
+        status: true,
+        sort_order: true,
+        product_id: true,
+        price_id: true,
+        apple_product_id: true,
+        google_product_id: true,
+        created_at: true,
+        updated_at: true,
         features: {
-          include: {
-            feature: true,
+          select: {
+            enabled: true,
+            limit_value: true,
+            feature: {
+              select: {
+                id: true,
+                key: true,
+                name: true,
+                description: true,
+                type: true,
+                unit: true,
+              },
+            },
           },
         },
       },
     });
 
+    const formattedPlan = {
+      ...updatedPlan,
+      price: Number(updatedPlan.price),
+      features: updatedPlan.features.map((f) => ({
+        id: f.feature?.id,
+        key: f.feature?.key,
+        name: f.feature?.name,
+        description: f.feature?.description,
+        type: f.feature?.type,
+        unit: f.feature?.unit,
+        limit_value: f.limit_value,
+        enabled: f.enabled,
+      })),
+    };
+
     return {
       success: true,
       message: 'Subscription plan updated successfully',
-      data: updatedPlan,
+      data: formattedPlan,
     };
   }
 
@@ -148,6 +314,7 @@ export class SubscriptionService {
     return {
       success: true,
       message: 'Subscription plan deleted successfully',
+      data: null,
     };
   }
 
@@ -158,6 +325,19 @@ export class SubscriptionService {
   async createFeature(dto: CreateSubscriptionFeatureDto) {
     const feature = await this.prisma.subscriptionFeature.create({
       data: dto,
+      select: {
+        id: true,
+        key: true,
+        name: true,
+        description: true,
+        type: true,
+        unit: true,
+        reset_period: true,
+        is_active: true,
+        sort_order: true,
+        created_at: true,
+        updated_at: true,
+      },
     });
 
     return {
@@ -170,10 +350,24 @@ export class SubscriptionService {
   async findAllFeatures() {
     const features = await this.prisma.subscriptionFeature.findMany({
       orderBy: { sort_order: 'asc' },
+      select: {
+        id: true,
+        key: true,
+        name: true,
+        description: true,
+        type: true,
+        unit: true,
+        reset_period: true,
+        is_active: true,
+        sort_order: true,
+        created_at: true,
+        updated_at: true,
+      },
     });
 
     return {
       success: true,
+      message: 'Subscription features retrieved successfully',
       data: features,
     };
   }
@@ -181,6 +375,19 @@ export class SubscriptionService {
   async findOneFeature(id: string) {
     const feature = await this.prisma.subscriptionFeature.findUnique({
       where: { id },
+      select: {
+        id: true,
+        key: true,
+        name: true,
+        description: true,
+        type: true,
+        unit: true,
+        reset_period: true,
+        is_active: true,
+        sort_order: true,
+        created_at: true,
+        updated_at: true,
+      },
     });
 
     if (!feature) {
@@ -189,6 +396,7 @@ export class SubscriptionService {
 
     return {
       success: true,
+      message: 'Subscription feature details retrieved successfully',
       data: feature,
     };
   }
@@ -199,6 +407,19 @@ export class SubscriptionService {
     const updatedFeature = await this.prisma.subscriptionFeature.update({
       where: { id },
       data: dto,
+      select: {
+        id: true,
+        key: true,
+        name: true,
+        description: true,
+        type: true,
+        unit: true,
+        reset_period: true,
+        is_active: true,
+        sort_order: true,
+        created_at: true,
+        updated_at: true,
+      },
     });
 
     return {
@@ -222,6 +443,7 @@ export class SubscriptionService {
     return {
       success: true,
       message: 'Subscription feature deleted successfully',
+      data: null,
     };
   }
 
@@ -247,56 +469,137 @@ export class SubscriptionService {
 
     const subscription = await this.prisma.userSubscription.create({
       data: dto,
-      include: {
-        plan: true,
+      select: {
+        id: true,
+        status: true,
+        started_at: true,
+        expires_at: true,
+        canceled_at: true,
+        purchase_provider: true,
+        purchase_id: true,
+        created_at: true,
+        updated_at: true,
         user: {
           select: {
             id: true,
             email: true,
+            name: true,
+            avatar: true,
             type: true,
+          },
+        },
+        plan: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            price: true,
+            currency: true,
+            interval: true,
           },
         },
       },
     });
 
+    const formattedSub = {
+      ...subscription,
+      plan: subscription.plan
+        ? {
+            ...subscription.plan,
+            price: Number(subscription.plan.price),
+          }
+        : null,
+    };
+
     return {
       success: true,
       message: 'User subscription created successfully',
-      data: subscription,
+      data: formattedSub,
     };
   }
 
   async findAllUserSubscriptions() {
     const subscriptions = await this.prisma.userSubscription.findMany({
       orderBy: { created_at: 'desc' },
-      include: {
-        plan: true,
+      select: {
+        id: true,
+        status: true,
+        started_at: true,
+        expires_at: true,
+        canceled_at: true,
+        purchase_provider: true,
+        purchase_id: true,
+        created_at: true,
+        updated_at: true,
         user: {
           select: {
             id: true,
             email: true,
+            name: true,
+            avatar: true,
             type: true,
+          },
+        },
+        plan: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            price: true,
+            currency: true,
+            interval: true,
           },
         },
       },
     });
 
+    const formattedSubs = subscriptions.map((sub) => ({
+      ...sub,
+      plan: sub.plan
+        ? {
+            ...sub.plan,
+            price: Number(sub.plan.price),
+          }
+        : null,
+    }));
+
     return {
       success: true,
-      data: subscriptions,
+      message: 'User subscriptions retrieved successfully',
+      data: formattedSubs,
     };
   }
 
   async findOneUserSubscription(id: string) {
     const subscription = await this.prisma.userSubscription.findUnique({
       where: { id },
-      include: {
-        plan: true,
+      select: {
+        id: true,
+        status: true,
+        started_at: true,
+        expires_at: true,
+        canceled_at: true,
+        purchase_provider: true,
+        purchase_id: true,
+        created_at: true,
+        updated_at: true,
         user: {
           select: {
             id: true,
             email: true,
+            name: true,
+            avatar: true,
             type: true,
+          },
+        },
+        plan: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            price: true,
+            currency: true,
+            interval: true,
           },
         },
       },
@@ -306,9 +609,20 @@ export class SubscriptionService {
       throw new NotFoundException('User subscription not found');
     }
 
+    const formattedSub = {
+      ...subscription,
+      plan: subscription.plan
+        ? {
+            ...subscription.plan,
+            price: Number(subscription.plan.price),
+          }
+        : null,
+    };
+
     return {
       success: true,
-      data: subscription,
+      message: 'User subscription details retrieved successfully',
+      data: formattedSub,
     };
   }
 
@@ -318,22 +632,52 @@ export class SubscriptionService {
     const updated = await this.prisma.userSubscription.update({
       where: { id },
       data: dto,
-      include: {
-        plan: true,
+      select: {
+        id: true,
+        status: true,
+        started_at: true,
+        expires_at: true,
+        canceled_at: true,
+        purchase_provider: true,
+        purchase_id: true,
+        created_at: true,
+        updated_at: true,
         user: {
           select: {
             id: true,
             email: true,
+            name: true,
+            avatar: true,
             type: true,
+          },
+        },
+        plan: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            price: true,
+            currency: true,
+            interval: true,
           },
         },
       },
     });
 
+    const formattedSub = {
+      ...updated,
+      plan: updated.plan
+        ? {
+            ...updated.plan,
+            price: Number(updated.plan.price),
+          }
+        : null,
+    };
+
     return {
       success: true,
       message: 'User subscription updated successfully',
-      data: updated,
+      data: formattedSub,
     };
   }
 
@@ -347,6 +691,7 @@ export class SubscriptionService {
     return {
       success: true,
       message: 'User subscription deleted successfully',
+      data: null,
     };
   }
 }
