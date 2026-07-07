@@ -13,7 +13,7 @@ import Redis from 'ioredis';
 import { NotificationService } from './notification.service';
 import { CreateNotificationDto } from './dto/create-notification.dto';
 import { UpdateNotificationDto } from './dto/update-notification.dto';
-import appConfig from '../../../config/app.config';
+import appConfig from '../../config/app.config';
 
 @WebSocketGateway({
   cors: {
@@ -62,7 +62,6 @@ export class NotificationGateway
   }
 
   async handleConnection(client: Socket, ...args: any[]) {
-    // console.log('new connection!', client.id);
     const userId = client.handshake.query.userId as string; // User ID passed as query parameter
     if (userId) {
       this.clients.set(userId, client.id);
@@ -71,7 +70,6 @@ export class NotificationGateway
   }
 
   handleDisconnect(client: Socket) {
-    // console.log('client disconnected!', client.id);
     const userId = [...this.clients.entries()].find(
       ([, socketId]) => socketId === client.id,
     )?.[0];
@@ -81,26 +79,12 @@ export class NotificationGateway
     }
   }
 
-  // @SubscribeMessage('joinRoom')
-  // handleRoomJoin(client: Socket, room: string) {
-  //   client.join(room);
-  //   client.emit('joinedRoom', room);
-  // }
-
   @SubscribeMessage('sendNotification')
   async handleNotification(@MessageBody() data: any) {
     console.log(`Received notification: ${JSON.stringify(data)}`);
-    // Broadcast notification to all clients
-    // this.server.emit('receiveNotification', data);
-
-    // Emit notification to specific client
     const targetSocketId = this.clients.get(data.userId);
     if (targetSocketId) {
       await this.redisPubClient.publish('notification', JSON.stringify(data));
-
-      // console.log(`Notification sent to user ${data.userId}`);
-    } else {
-      // console.log(`User ${data.userId} not connected`);
     }
   }
 
@@ -109,13 +93,8 @@ export class NotificationGateway
     return this.notificationService.create(createNotificationDto);
   }
 
-  @SubscribeMessage('findAllNotification')
-  findAll() {
-    return this.notificationService.findAll();
-  }
-
   @SubscribeMessage('findOneNotification')
-  findOne(@MessageBody() id: number) {
+  findOne(@MessageBody() id: string) {
     return this.notificationService.findOne(id);
   }
 
@@ -128,7 +107,7 @@ export class NotificationGateway
   }
 
   @SubscribeMessage('removeNotification')
-  remove(@MessageBody() id: number) {
+  remove(@MessageBody() id: string) {
     return this.notificationService.remove(id);
   }
 }

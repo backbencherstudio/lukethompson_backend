@@ -22,6 +22,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { PaymentModule } from './modules/payment/payment.module';
 import { PrometheusModule } from './prometheus/prometheus.module';
 import { RepositoryModule } from './common/repository/repository.module';
+import { NotificationModule } from './modules/notification/notification.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { RepositoryModule } from './common/repository/repository.module';
     AuthModule,
     AbilityModule,
     MailModule,
+    NotificationModule,
     ApplicationModule,
     AdminModule,
     PaymentModule,

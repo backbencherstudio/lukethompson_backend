@@ -6,17 +6,14 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { Role } from '../../../common/guard/role/role.enum';
-import { Roles } from '../../../common/guard/role/roles.decorator';
-import { RolesGuard } from '../../../common/guard/role/roles.guard';
-import { JwtAuthGuard } from '../../../modules/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guard/role/roles.guard';
 import { Request } from 'express';
 
-@ApiBearerAuth('admin_token')
+@ApiBearerAuth('user_token')
 @ApiTags('Notification')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
-@Controller('admin/notification')
+@Controller(['notification', 'admin/notification'])
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 
@@ -29,10 +26,8 @@ export class NotificationController {
   async findAll(@Req() req: Request) {
     try {
       const user_id = req.user.id;
-
-      const notification = await this.notificationService.findAll(user_id);
-
-      return notification;
+      const notifications = await this.notificationService.findAll(user_id);
+      return notifications;
     } catch (error) {
       return {
         success: false,
@@ -50,9 +45,8 @@ export class NotificationController {
   async remove(@Req() req: Request, @Param('id') id: string) {
     try {
       const user_id = req.user.id;
-      const notification = await this.notificationService.remove(id, user_id);
-
-      return notification;
+      const result = await this.notificationService.remove(id, user_id);
+      return result;
     } catch (error) {
       return {
         success: false,
@@ -70,9 +64,8 @@ export class NotificationController {
   async removeAll(@Req() req: Request) {
     try {
       const user_id = req.user.id;
-      const notification = await this.notificationService.removeAll(user_id);
-
-      return notification;
+      const result = await this.notificationService.removeAll(user_id);
+      return result;
     } catch (error) {
       return {
         success: false,

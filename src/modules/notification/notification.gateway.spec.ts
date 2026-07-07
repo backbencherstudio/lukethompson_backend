@@ -7,7 +7,18 @@ describe('NotificationGateway', () => {
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [NotificationGateway, NotificationService],
+      providers: [
+        NotificationGateway,
+        {
+          provide: NotificationService,
+          useValue: {
+            create: jest.fn(),
+            findOne: jest.fn(),
+            update: jest.fn(),
+            remove: jest.fn(),
+          },
+        },
+      ],
     }).compile();
 
     gateway = module.get<NotificationGateway>(NotificationGateway);
