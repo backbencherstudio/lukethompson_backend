@@ -37,15 +37,14 @@ export class AdminStopLogItemDto {
 }
 
 export class AdminStopLogMetaDto {
-  @ApiProperty({
-    example: 'cl0a1b2c3d4e5f6g7h8i9j0k',
-    required: false,
-    nullable: true,
-  })
-  next_cursor?: string;
+  @ApiProperty({ example: 1 })
+  page: number;
 
   @ApiProperty({ example: 10 })
   limit: number;
+
+  @ApiProperty({ example: 45 })
+  total: number;
 }
 
 export class AdminStopLogListResponseDto {

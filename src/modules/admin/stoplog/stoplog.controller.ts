@@ -22,7 +22,7 @@ import {
 import { AdminStopLogListResponseDto } from './dto/response-stoplog.dto';
 import { JwtAuthGuard } from 'src/modules/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/common/guard/role/roles.guard';
-import { QueryStopLogDto } from '../../application/stoplog/dto/query-stoplog.dto';
+import { AdminQueryStopLogDto } from './dto/query-stoplog.dto';
 
 @ApiTags('Admin stoplog')
 @ApiBearerAuth('admin_token')
@@ -34,7 +34,7 @@ export class StopLogController {
   @ApiOperation({
     summary: 'Get all stop logs for a specific user',
     description:
-      'Allows administrative users to retrieve all stop logs belonging to a specific user (driver) by their user ID. Supports cursor pagination and text search filtering.',
+      'Allows administrative users to retrieve all stop logs belonging to a specific user (driver) by their user ID. Supports page and limit pagination and text search filtering.',
   })
   @ApiResponse({
     status: 200,
@@ -44,7 +44,7 @@ export class StopLogController {
   @Get('user/:user_id')
   findAllByUser(
     @Param('user_id') user_id: string,
-    @Query() query: QueryStopLogDto,
+    @Query() query: AdminQueryStopLogDto,
   ) {
     return this.stopLogService.findAllByUser(user_id, query);
   }
