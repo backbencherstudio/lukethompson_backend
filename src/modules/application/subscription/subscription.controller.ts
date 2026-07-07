@@ -12,6 +12,8 @@ import { GetUser } from '../../../modules/auth/decorators/get-user.decorator';
 import {
   CreateCheckoutSessionDto,
   CheckoutSessionResponseDto,
+  SubscriptionPlanResponseDto,
+  UserSubscriptionResponseDto,
 } from './dto/subscription.dto';
 
 @ApiBearerAuth('user_token')
@@ -22,14 +24,22 @@ export class SubscriptionController {
   constructor(private readonly subscriptionService: SubscriptionService) {}
 
   @ApiOperation({ summary: 'Get all active subscription plans' })
-  @ApiResponse({ status: 200, description: 'List of active subscription plans retrieved successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of active subscription plans retrieved successfully.',
+    type: SubscriptionPlanResponseDto,
+  })
   @Get('plans')
   findAllPlans() {
     return this.subscriptionService.findAllPlans();
   }
 
   @ApiOperation({ summary: 'Get driver current active subscription status' })
-  @ApiResponse({ status: 200, description: 'Current active user subscription retrieved successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Current active user subscription retrieved successfully.',
+    type: UserSubscriptionResponseDto,
+  })
   @Get('current')
   getCurrentSubscription(@GetUser('id') user_id: string) {
     return this.subscriptionService.getCurrentSubscription(user_id);

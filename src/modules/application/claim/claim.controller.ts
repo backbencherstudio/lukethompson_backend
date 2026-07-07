@@ -25,6 +25,7 @@ import { SendFollowUpDto } from './dto/send-follow-up.dto';
 import {
   ClaimListResponseDto,
   ClaimActionResponseDto,
+  ClaimSubmitResponseDto,
 } from './dto/response-claim.dto';
 
 @ApiTags('Application claim')
@@ -118,6 +119,7 @@ export class ClaimController {
   @ApiResponse({
     status: 200,
     description: 'Claim submitted successfully',
+    type: ClaimSubmitResponseDto,
   })
   @Post(':id/submit')
   submitClaim(

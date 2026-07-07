@@ -25,3 +25,25 @@ export class CheckoutSessionResponseDto {
   @ApiProperty({ type: CheckoutSessionDataDto })
   data: CheckoutSessionDataDto;
 }
+
+export class SubscriptionPlanResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({ example: 'Active subscription plans retrieved successfully' })
+  message: string;
+
+  @ApiProperty()
+  data: any;
+}
+
+export class UserSubscriptionResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({ example: 'Current user subscription retrieved successfully' })
+  message: string;
+
+  @ApiProperty()
+  data: any;
+}

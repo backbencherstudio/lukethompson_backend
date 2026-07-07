@@ -90,3 +90,32 @@ export class ClaimActionResponseDto {
   @ApiProperty({ example: 'Operation completed successfully' })
   message: string;
 }
+
+export class ClaimSubmitDataDto {
+  @ApiProperty({ example: 'claim_id_1' })
+  claim_id: string;
+
+  @ApiProperty({ example: 'SUBMITTED' })
+  status: string;
+
+  @ApiProperty({ example: '2026-06-28T05:27:44Z' })
+  sent_at: string;
+
+  @ApiProperty({
+    example: 'Hello, this is a formal request for payment...',
+    required: false,
+    description: 'The copyable claim message, if method was MESSAGE',
+  })
+  claim_message?: string;
+}
+
+export class ClaimSubmitResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({ example: 'Claim submitted successfully via email' })
+  message: string;
+
+  @ApiProperty({ type: ClaimSubmitDataDto })
+  data: ClaimSubmitDataDto;
+}

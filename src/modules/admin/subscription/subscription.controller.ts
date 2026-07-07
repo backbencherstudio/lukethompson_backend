@@ -27,6 +27,11 @@ import {
   UpdateSubscriptionPlanDto,
   UpdateUserSubscriptionDto,
 } from './dto/update-subscription.dto';
+import {
+  SubscriptionPlanResponseDto,
+  SubscriptionFeatureResponseDto,
+  UserSubscriptionResponseDto,
+} from './dto/response-subscription.dto';
 
 @ApiBearerAuth('admin_token')
 @ApiTags('Admin Subscription')
@@ -44,6 +49,7 @@ export class SubscriptionController {
   @ApiResponse({
     status: 201,
     description: 'Subscription plan created successfully.',
+    type: SubscriptionPlanResponseDto,
   })
   @Post('plans')
   createPlan(@Body() dto: CreateSubscriptionPlanDto) {
@@ -54,6 +60,7 @@ export class SubscriptionController {
   @ApiResponse({
     status: 200,
     description: 'List of subscription plans retrieved successfully.',
+    type: SubscriptionPlanResponseDto,
   })
   @Get('plans')
   findAllPlans() {
@@ -64,6 +71,7 @@ export class SubscriptionController {
   @ApiResponse({
     status: 200,
     description: 'Subscription plan details retrieved.',
+    type: SubscriptionPlanResponseDto,
   })
   @Get('plans/:plan_id')
   findOnePlan(@Param('plan_id') plan_id: string) {
@@ -74,6 +82,7 @@ export class SubscriptionController {
   @ApiResponse({
     status: 200,
     description: 'Subscription plan updated successfully.',
+    type: SubscriptionPlanResponseDto,
   })
   @Patch('plans/:plan_id')
   updatePlan(
@@ -101,6 +110,7 @@ export class SubscriptionController {
   @ApiResponse({
     status: 200,
     description: 'List of subscription features retrieved successfully.',
+    type: SubscriptionFeatureResponseDto,
   })
   @Get('features')
   findAllFeatures() {
@@ -111,6 +121,7 @@ export class SubscriptionController {
   @ApiResponse({
     status: 200,
     description: 'Subscription feature details retrieved.',
+    type: SubscriptionFeatureResponseDto,
   })
   @Get('features/:feature_id')
   findOneFeature(@Param('feature_id') feature_id: string) {
@@ -125,6 +136,7 @@ export class SubscriptionController {
   @ApiResponse({
     status: 201,
     description: 'User subscription assigned successfully.',
+    type: UserSubscriptionResponseDto,
   })
   @Post('user-subscriptions')
   createUserSubscription(@Body() dto: CreateUserSubscriptionDto) {
@@ -135,6 +147,7 @@ export class SubscriptionController {
   @ApiResponse({
     status: 200,
     description: 'List of user subscriptions retrieved successfully.',
+    type: UserSubscriptionResponseDto,
   })
   @Get('user-subscriptions')
   findAllUserSubscriptions() {
@@ -145,6 +158,7 @@ export class SubscriptionController {
   @ApiResponse({
     status: 200,
     description: 'User subscription details retrieved.',
+    type: UserSubscriptionResponseDto,
   })
   @Get('user-subscriptions/:user_subscription_id')
   findOneUserSubscription(
@@ -159,6 +173,7 @@ export class SubscriptionController {
   @ApiResponse({
     status: 200,
     description: 'User subscription updated successfully.',
+    type: UserSubscriptionResponseDto,
   })
   @Patch('user-subscriptions/:user_subscription_id')
   updateUserSubscription(
