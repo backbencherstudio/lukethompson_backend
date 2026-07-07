@@ -16,6 +16,7 @@ import {
   StopLogStatus as QueryStopLogStatus,
 } from './dto/query-stoplog.dto';
 import {
+  AttachmentType,
   ClaimStatus,
   Prisma,
   StopLogStatus as PrismaStopLogStatus,
@@ -29,6 +30,19 @@ type StepState = Pick<
   Prisma.StopLogUncheckedCreateInput,
   'arrived_at' | 'docked_at' | 'completed_at' | 'departed_at' | 'status'
 >;
+
+const RECOURSE_LEVELS = {
+  0: { name: 'Draft / Initial Claim', days: 'Day 0' },
+  1: { name: 'Soft follow-ups', days: 'Day 2, 7, 14' },
+  2: { name: 'Broker Formal Escalation', days: 'Day 15+' },
+  3: { name: 'Certified Demand Letter', days: 'Day 21+' },
+  4: { name: 'Broker Bond Claim (BMC-84/85)', days: 'Day 21+' },
+  5: { name: 'Credit Bureau Report', days: 'Day 30+' },
+  6: { name: 'FMCSA Complaint', days: 'Day 30+' },
+  7: { name: 'Load Board Negative Report', days: 'Day 30+' },
+  8: { name: 'Small Claims Court Filing', days: 'Day 45+' },
+  9: { name: 'Collections / Attorney Referral', days: 'Day 60+' },
+};
 
 @Injectable()
 export class StopLogService {
@@ -652,20 +666,43 @@ export class StopLogService {
             size_bytes: true,
           },
         },
-        claim: {
-          include: {
-            claim_events: {
-              orderBy: {
-                created_at: 'desc',
-              },
-            },
-          },
-        },
+        claim: true,
       },
     });
     if (!stoplog) throw new UnauthorizedException('Stop log not found');
 
     const currentStep = this.getCurrentStep(stoplog);
+
+    const attachments = stoplog.attachments
+      .filter((attachment) => {
+        return attachment.type !== AttachmentType.DETENTION_SUMMARY;
+      })
+      .map((attachment) => {
+        return {
+          ...attachment,
+          file_url: NajimStorage.url(attachment.file_url, {
+            signed: true,
+            expires: 86400,
+          }),
+        };
+      });
+
+    let detention_summary_pdf = null;
+    if (stoplog.status === PrismaStopLogStatus.COMPLETED) {
+      const DetentionSummary = stoplog?.attachments?.find((attachment) => {
+        return attachment.type === AttachmentType.DETENTION_SUMMARY;
+      });
+
+      if (DetentionSummary) {
+        detention_summary_pdf = {
+          ...DetentionSummary,
+          file_url: NajimStorage.url(DetentionSummary.file_url, {
+            signed: true,
+            expires: 63072000,
+          }),
+        };
+      }
+    }
 
     if (stoplog.status !== PrismaStopLogStatus.COMPLETED) {
       return ResponseHelper.success({
@@ -685,12 +722,8 @@ export class StopLogService {
           departed_at: stoplog.departed_at,
           arrival_location: stoplog.arrival_location,
           facility_address: stoplog.facility_address,
-          attachments: stoplog.attachments.map((attachment) => {
-            return {
-              ...attachment,
-              file_url: NajimStorage.url(attachment.file_url),
-            };
-          }),
+          detention_summary_pdf,
+          attachments,
           current_step: currentStep,
         },
       });
@@ -746,29 +779,18 @@ export class StopLogService {
         address,
         detention: totalAmount.toFixed(2),
         lost: totalAmount.toFixed(2),
-        attachments: stoplog.attachments.map((att) => ({
-          ...att,
-          file_url: NajimStorage.url(att.file_url),
-        })),
+        detention_summary_pdf,
+        attachments,
         claim: stoplog.claim
           ? {
               id: stoplog.claim.id,
               status: stoplog.claim.status,
               amount: stoplog.claim.claim_amount,
-              paid_amount: stoplog.claim.paid_amount,
-              sent_at: stoplog.claim.sent_at,
-              recipient_email: stoplog.claim.recipient_email,
-              recourse_level: stoplog.claim.recourse_level,
+              level: stoplog.claim.recourse_level,
+              level_name:
+                RECOURSE_LEVELS[stoplog.claim.recourse_level]?.name ||
+                'Unknown Stage',
               followup_count: stoplog.claim.followup_count,
-              followup_due_at: stoplog.claim.followup_due_at,
-              claim_events: stoplog.claim.claim_events.map((event) => ({
-                id: event.id,
-                created_at: event.created_at,
-                type: event.type,
-                recourse_level: event.recourse_level,
-                followup_level: event.followup_level,
-                description: event.description,
-              })),
             }
           : null,
       },

@@ -37,6 +37,9 @@ export class AdminStopLogItemDto {
 }
 
 export class AdminStopLogMetaDto {
+  @ApiProperty({ example: 'user_id' })
+  search: string;
+
   @ApiProperty({ example: 1 })
   page: number;
 

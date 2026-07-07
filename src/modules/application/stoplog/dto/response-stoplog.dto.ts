@@ -301,6 +301,27 @@ export class StopLogDetailInProgressDto {
   @ApiProperty({ example: 'cl0a1b2c3d4e5f6g7h8i9j0k' })
   id: string;
 
+  @ApiProperty({ example: 'cl0a1b2c3d4e5f6g7h8i9j0k' })
+  user_id: string;
+
+  @ApiProperty({ example: 'cl0a1b2c3d4e5f6g7h8i9j0k' })
+  shipper_facility_id: string;
+
+  @ApiProperty({ example: 'cl0a1b2c3d4e5f6g7h8i9j0k' })
+  shipper_id: string;
+
+  @ApiProperty({ example: 'Acme Shipper' })
+  shipper_name: string;
+
+  @ApiProperty({ example: 'Warehouse A' })
+  facility_name: string;
+
+  @ApiProperty({ example: 'BOL-123', required: false, nullable: true })
+  bol_number?: string;
+
+  @ApiProperty({ example: 'ACTIVE' })
+  status: string;
+
   @ApiProperty({ example: '2026-06-28T05:27:41Z' })
   arrived_at: string;
 
@@ -325,13 +346,63 @@ export class StopLogDetailInProgressDto {
   })
   departed_at?: string;
 
+  @ApiProperty({ type: Object, required: false, nullable: true })
+  arrival_location?: any;
+
+  @ApiProperty({ type: Object, required: false, nullable: true })
+  facility_address?: any;
+
+  @ApiProperty({ type: Object, required: false, nullable: true })
+  detention_summary_pdf?: any;
+
+  @ApiProperty({ type: [Object], example: [] })
+  attachments: any[];
+
   @ApiProperty({ example: 'arrival_time' })
   current_step: string;
+}
+
+export class StopLogDetailClaimDto {
+  @ApiProperty({ example: 'cl0a1b2c3d4e5f6g7h8i9j0k' })
+  id: string;
+
+  @ApiProperty({ example: 'DRAFT', enum: ['DRAFT', 'SUBMITTED', 'PAID', 'DENIED'] })
+  status: string;
+
+  @ApiProperty({ example: 250 })
+  amount: number;
+
+  @ApiProperty({ example: 0, description: 'Current recourse step / level (e.g. 0 = initial, 1 = followup, etc.)' })
+  level: number;
+
+  @ApiProperty({ example: 'Draft / Initial Claim', description: 'Name of the current recourse level' })
+  level_name: string;
+
+  @ApiProperty({ example: 1, description: 'Number of follow-ups sent' })
+  followup_count: number;
 }
 
 export class StopLogDetailCompletedDto {
   @ApiProperty({ example: 'cl0a1b2c3d4e5f6g7h8i9j0k' })
   id: string;
+
+  @ApiProperty({ example: 'COMPLETED' })
+  status: string;
+
+  @ApiProperty({ example: 'Warehouse A' })
+  facility_name: string;
+
+  @ApiProperty({ example: '2026-06-28T05:27:41Z' })
+  arrived_at: string;
+
+  @ApiProperty({ example: '2026-06-28T05:27:41Z' })
+  departed_at: string;
+
+  @ApiProperty({ example: 'BOL-123', required: false, nullable: true })
+  bol_number?: string;
+
+  @ApiProperty({ example: '32.1221, -112.1221', required: false, nullable: true })
+  gps_coordinates?: string;
 
   @ApiProperty({ example: 100 })
   rate_per_hour: number;
@@ -341,6 +412,9 @@ export class StopLogDetailCompletedDto {
 
   @ApiProperty({ example: '2.50' })
   billable_time: string;
+
+  @ApiProperty({ example: '2h 30m' })
+  billable_time_text: string;
 
   @ApiProperty({ example: '5.90' })
   arrival_departure_time: string;
@@ -353,6 +427,20 @@ export class StopLogDetailCompletedDto {
 
   @ApiProperty({ example: '250.00' })
   lost: string;
+
+  @ApiProperty({ type: Object, required: false, nullable: true })
+  detention_summary_pdf?: any;
+
+  @ApiProperty({ type: [Object], example: [] })
+  attachments: any[];
+
+  @ApiProperty({
+    type: StopLogDetailClaimDto,
+    required: false,
+    nullable: true,
+    description: 'Claim status details if generated, otherwise null',
+  })
+  claim?: StopLogDetailClaimDto | null;
 }
 
 export class StopLogDetailResponseDto {

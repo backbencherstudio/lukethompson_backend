@@ -92,7 +92,7 @@ export class PdfProcessor extends WorkerHost {
         .filter((att) => att.type !== AttachmentType.DETENTION_SUMMARY)
         .map((att) => ({
           file_name: att.file_name || 'Attachment',
-          file_url: NajimStorage.url(att.file_url),
+          file_url: NajimStorage.url(att.file_url, { signed: true, expires: 63072000 }),
         }));
 
       const gpsStr =
