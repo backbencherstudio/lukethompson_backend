@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class ShipperRatingUserDto {
+export class AdminShipperRatingUserDto {
   @ApiProperty({ example: 'usr_123456789' })
   id: string;
 
@@ -14,7 +14,7 @@ export class ShipperRatingUserDto {
   avatar: string | null;
 }
 
-export class ShipperRatingItemDto {
+export class AdminShipperRatingItemDto {
   @ApiProperty({ example: 'rating_123456789' })
   id: string;
 
@@ -33,11 +33,11 @@ export class ShipperRatingItemDto {
   @ApiProperty({ example: '2023-10-27T10:00:00.000Z' })
   created_at: Date;
 
-  @ApiProperty({ type: ShipperRatingUserDto, nullable: true })
-  user: ShipperRatingUserDto | null;
+  @ApiProperty({ type: AdminShipperRatingUserDto, nullable: true })
+  user: AdminShipperRatingUserDto | null;
 }
 
-export class ShipperRatingMetaDto {
+export class AdminShipperRatingMetaDto {
   @ApiProperty({ example: 50 })
   total: number;
 
@@ -48,18 +48,21 @@ export class ShipperRatingMetaDto {
   limit: number;
 }
 
-export class ShipperRatingListResponseDto {
+export class AdminShipperRatingListResponseDto {
   @ApiProperty({ example: true })
   success: boolean;
 
-  @ApiProperty({ type: [ShipperRatingItemDto] })
-  data: ShipperRatingItemDto[];
+  @ApiProperty({ example: 'Ratings retrieved successfully', required: false, nullable: true })
+  message?: string;
 
-  @ApiProperty({ type: ShipperRatingMetaDto })
-  meta_data: ShipperRatingMetaDto;
+  @ApiProperty({ type: [AdminShipperRatingItemDto], required: false, nullable: true })
+  data?: AdminShipperRatingItemDto[];
+
+  @ApiProperty({ type: AdminShipperRatingMetaDto, required: false, nullable: true })
+  meta_data?: AdminShipperRatingMetaDto;
 }
 
-export class ShipperStatsDataDto {
+export class AdminShipperStatsDataDto {
   @ApiProperty({ example: 100 })
   total_users: number;
 
@@ -70,10 +73,21 @@ export class ShipperStatsDataDto {
   total_facilities: number;
 }
 
-export class ShipperStatsResponseDto {
+export class AdminShipperStatsResponseDto {
   @ApiProperty({ example: true })
   success: boolean;
 
-  @ApiProperty({ type: ShipperStatsDataDto })
-  data: ShipperStatsDataDto;
+  @ApiProperty({ example: 'Shipper statistics retrieved successfully', required: false, nullable: true })
+  message?: string;
+
+  @ApiProperty({ type: AdminShipperStatsDataDto, required: false, nullable: true })
+  data?: AdminShipperStatsDataDto;
+}
+
+export class AdminShipperRatingDeleteResponseDto {
+  @ApiProperty({ example: true })
+  success: boolean;
+
+  @ApiProperty({ example: 'Rating deleted successfully' })
+  message: string;
 }
