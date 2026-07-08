@@ -6,11 +6,33 @@ import {
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ResponseHelper } from 'src/common/helper/response.helper';
 import { QueryClaimDto, QueryClaimStatus } from './dto/query-claim.dto';
-import { ClaimStatus, ClaimEventType, Prisma, AttachmentType } from 'prisma/generated/client';
-import { MarkPaidDto, MarkDeniedDto, SubmitClaimDto } from './dto/update-claim.dto';
+import {
+  ClaimStatus,
+  ClaimEventType,
+  Prisma,
+  AttachmentType,
+} from 'prisma/generated/client';
+import {
+  MarkPaidDto,
+  MarkDeniedDto,
+  SubmitClaimDto,
+} from './dto/update-claim.dto';
 import { MailService } from 'src/mail/mail.service';
 import { SendFollowUpDto } from './dto/send-follow-up.dto';
 import { NajimStorage } from 'src/common/lib/Disk/NajimStorage';
+
+const RECOURSE_LEVELS = {
+  0: { name: 'Draft / Initial Claim', days: 'Day 0' },
+  1: { name: 'Soft follow-ups', days: 'Day 2, 7, 14' },
+  2: { name: 'Broker Formal Escalation', days: 'Day 15+' },
+  3: { name: 'Certified Demand Letter', days: 'Day 21+' },
+  4: { name: 'Broker Bond Claim (BMC-84/85)', days: 'Day 21+' },
+  5: { name: 'Credit Bureau Report', days: 'Day 30+' },
+  6: { name: 'FMCSA Complaint', days: 'Day 30+' },
+  7: { name: 'Load Board Negative Report', days: 'Day 30+' },
+  8: { name: 'Small Claims Court Filing', days: 'Day 45+' },
+  9: { name: 'Collections / Attorney Referral', days: 'Day 60+' },
+};
 
 @Injectable()
 export class ClaimService {
@@ -26,6 +48,14 @@ export class ClaimService {
     const monday = new Date(d.setDate(diff));
     monday.setHours(0, 0, 0, 0);
     return monday;
+  }
+
+  private formatHoursMinutes(hours: number) {
+    const totalMinutes = Math.round(hours * 60);
+    const formattedHours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    return `${formattedHours}h ${minutes}m`;
   }
 
   async getAllClaims(query: QueryClaimDto, user_id: string) {
@@ -299,6 +329,29 @@ export class ClaimService {
       );
     }
 
+    if (!claim.sent_at) {
+      throw new BadRequestException('Claim has not been submitted yet');
+    }
+
+    const now = new Date();
+    const diffTime = Math.max(0, now.getTime() - claim.sent_at.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+    let requiredDays = 0;
+    if (dto.level === 1) {
+      requiredDays = 2;
+    } else if (dto.level === 2) {
+      requiredDays = 7;
+    } else if (dto.level === 3) {
+      requiredDays = 14;
+    }
+
+    if (diffDays < requiredDays) {
+      throw new BadRequestException(
+        `Follow-up Level ${dto.level} is locked until Day ${requiredDays} (currently Day ${diffDays}).`,
+      );
+    }
+
     // 3. Resolve recipient and CC emails
     const toEmail = claim.recipient_email || claim.stop_log?.broker_email;
     if (!toEmail) {
@@ -371,7 +424,6 @@ export class ClaimService {
     });
 
     // 6. Database mutations in sequential transaction
-    const now = new Date();
     const nextMilestone = new Date(now);
     nextMilestone.setDate(nextMilestone.getDate() + 7); // update timestamp for next milestone (7 days from now)
 
@@ -383,7 +435,7 @@ export class ClaimService {
       const updated = await tx.claim.update({
         where: { id: claim.id },
         data: {
-          followup_count: claim.followup_count + 1,
+          followup_count: Math.max(claim.followup_count, dto.level),
           last_follow_up_at: now,
           followup_due_at: nextMilestone,
           recourse_level: 1, // recourse_level level 1 is the followup stage
@@ -416,7 +468,9 @@ export class ClaimService {
       where: { email: { equals: dto.recipient_email, mode: 'insensitive' } },
     });
     if (!recipientUser) {
-      throw new BadRequestException('Recipient email does not exist in the database');
+      throw new BadRequestException(
+        'Recipient email does not exist in the database',
+      );
     }
 
     // 2. Fetch the claim with stop log and user details
@@ -462,7 +516,10 @@ export class ClaimService {
       ? new Date(claim.stop_log.departed_at).getTime()
       : new Date().getTime();
     const totalTime = Math.max(0, (departed - arrived) / (1000 * 60 * 60));
-    const payableTime = Math.max(0, totalTime - (claim.user?.free_wait_time || 0));
+    const payableTime = Math.max(
+      0,
+      totalTime - (claim.user?.free_wait_time || 0),
+    );
     const totalAmount = payableTime * (claim.user?.rate_per_hour || 0);
 
     const formatDuration = (hoursDecimal: number): string => {
@@ -501,7 +558,8 @@ export class ClaimService {
       }
 
       const gpsStr =
-        claim.stop_log?.arrival_location?.lat && claim.stop_log?.arrival_location?.lng
+        claim.stop_log?.arrival_location?.lat &&
+        claim.stop_log?.arrival_location?.lng
           ? `${Number(claim.stop_log.arrival_location.lat).toFixed(4)}, ${Number(claim.stop_log.arrival_location.lng).toFixed(4)}`
           : 'N/A';
 
@@ -509,7 +567,10 @@ export class ClaimService {
         .filter((att) => att.type !== AttachmentType.DETENTION_SUMMARY)
         .map((att) => ({
           file_name: att.file_name || 'Attachment',
-          file_url: NajimStorage.url(att.file_url, { signed: true, expires: 63072000 }),
+          file_url: NajimStorage.url(att.file_url, {
+            signed: true,
+            expires: 63072000,
+          }),
         }));
 
       const bolSuffix = claim.stop_log?.bol_number
@@ -585,9 +646,10 @@ ${pdfUrl}`;
     });
 
     return ResponseHelper.success({
-      message: dto.claim_method.toUpperCase() === 'EMAIL'
-        ? 'Claim submitted successfully via email'
-        : 'Claim message generated successfully',
+      message:
+        dto.claim_method.toUpperCase() === 'EMAIL'
+          ? 'Claim submitted successfully via email'
+          : 'Claim message generated successfully',
       data: {
         claim_id: updatedClaim.id,
         status: updatedClaim.status,
@@ -595,5 +657,362 @@ ${pdfUrl}`;
         ...(claimMessage ? { claim_message: claimMessage } : {}),
       },
     });
+  }
+
+  async getOneClaim(id: string, user_id: string) {
+    const claim = await this.prisma.claim.findFirst({
+      where: { id, user_id },
+      include: {
+        user: {
+          select: {
+            rate_per_hour: true,
+            free_wait_time: true,
+          },
+        },
+        shipper_facility: {
+          select: {
+            name: true,
+          },
+        },
+        stop_log: {
+          include: {
+            arrival_location: true,
+            facility_address: true,
+            attachments: true,
+          },
+        },
+        attachments: true,
+        claim_events: {
+          orderBy: {
+            created_at: 'desc',
+          },
+        },
+      },
+    });
+
+    if (!claim) {
+      throw new NotFoundException('Claim not found');
+    }
+
+    // Combine stop log and claim attachments, resolving file URLs
+    const stopLogAttachments = claim.stop_log?.attachments || [];
+    const claimAttachments = claim.attachments || [];
+    const allRawAttachments = [...stopLogAttachments, ...claimAttachments];
+    const uniqueAttachmentsMap = new Map<
+      string,
+      (typeof allRawAttachments)[0]
+    >();
+    for (const att of allRawAttachments) {
+      uniqueAttachmentsMap.set(att.id, att);
+    }
+
+    const attachments = Array.from(uniqueAttachmentsMap.values())
+      .filter(
+        (attachment) => attachment.type !== AttachmentType.DETENTION_SUMMARY,
+      )
+      .map((attachment) => ({
+        id: attachment.id,
+        file_name: attachment.file_name,
+        file_url: NajimStorage.url(attachment.file_url, {
+          signed: true,
+          expires: 86400,
+        }),
+        mime_type: attachment.mime_type,
+        type: attachment.type,
+        size_bytes: attachment.size_bytes,
+      }));
+
+    // Resolve detention summary PDF
+    let detention_summary_pdf = null;
+    const detentionSummaryAttachment = Array.from(
+      uniqueAttachmentsMap.values(),
+    ).find(
+      (attachment) => attachment.type === AttachmentType.DETENTION_SUMMARY,
+    );
+
+    if (detentionSummaryAttachment) {
+      detention_summary_pdf = {
+        id: detentionSummaryAttachment.id,
+        file_name: detentionSummaryAttachment.file_name,
+        file_url: NajimStorage.url(detentionSummaryAttachment.file_url, {
+          signed: true,
+          expires: 63072000,
+        }),
+        mime_type: detentionSummaryAttachment.mime_type,
+        type: detentionSummaryAttachment.type,
+        size_bytes: detentionSummaryAttachment.size_bytes,
+      };
+    }
+
+    // recourse level lookup
+    const recourseLevelInfo = RECOURSE_LEVELS[claim.recourse_level] || {
+      name: 'Unknown Stage',
+    };
+
+    // Format timeline events
+    const timeline = (claim.claim_events || []).map((event) => ({
+      id: event.id,
+      created_at: event.created_at,
+      type: event.type,
+      recourse_level: event.recourse_level,
+      followup_level: event.followup_level,
+      description: event.description,
+    }));
+
+    return ResponseHelper.success({
+      message: 'Claim fetched successfully',
+      data: {
+        id: claim.id,
+        status: claim.status,
+        claim_amount: claim.claim_amount,
+        paid_amount: claim.paid_amount,
+        sent_at: claim.sent_at,
+        paid_at: claim.paid_at,
+        denied_at: claim.denied_at,
+        denied_by: claim.denied_by,
+        denial_reason: claim.denial_reason,
+        recipient_email: claim.recipient_email,
+        broker_email: claim.stop_log?.broker_email,
+        send_method: claim.send_method,
+        recourse_level: claim.recourse_level,
+        recourse_level_name: recourseLevelInfo.name,
+        followup_count: claim.followup_count,
+        last_follow_up_at: claim.last_follow_up_at,
+        followup_due_at: claim.followup_due_at,
+        usps_tracking_number: claim.usps_tracking_number,
+        fmcsa_complaint_number: claim.fmcsa_complaint_number,
+        small_claims_case_number: claim.small_claims_case_number,
+        broker_escalation_at: claim.broker_escalation_at,
+        demand_letter_at: claim.demand_letter_at,
+        bond_claim_at: claim.bond_claim_at,
+        credit_report_at: claim.credit_report_at,
+        fmcsa_complaint_at: claim.fmcsa_complaint_at,
+        load_board_report_at: claim.load_board_report_at,
+        small_claims_filed_at: claim.small_claims_filed_at,
+        collections_referred_at: claim.collections_referred_at,
+        detention_summary_pdf,
+        attachments,
+        timeline,
+      },
+    });
+  }
+
+  async escalateClaim(id: string, user_id: string) {
+    const claim = await this.prisma.claim.findFirst({
+      where: { id, user_id },
+      include: {
+        stop_log: true,
+      },
+    });
+
+    if (!claim) {
+      throw new NotFoundException('Claim not found');
+    }
+
+    if (claim.status === ClaimStatus.PAID) {
+      throw new BadRequestException('Claim is already paid');
+    }
+
+    if (!claim.sent_at) {
+      throw new BadRequestException('Claim has not been submitted yet');
+    }
+
+    const now = new Date();
+    let nextRecourseLevel = null;
+    let eventType: ClaimEventType = null;
+    let requiredGapDays = 0;
+    let stageName = '';
+    let description = '';
+    let elapsedDays = 0;
+
+    if (claim.recourse_level === 1) {
+      if (claim.followup_count < 3 || !claim.last_follow_up_at) {
+        throw new BadRequestException(
+          'Cannot escalate to Broker Formal Escalation. Please send the 3rd soft follow-up first.',
+        );
+      }
+      const oneDayMs = 24 * 60 * 60 * 1000;
+      const diffTime = now.getTime() - claim.last_follow_up_at.getTime();
+      elapsedDays = Math.floor(diffTime / oneDayMs);
+      requiredGapDays = 1;
+
+      if (diffTime < oneDayMs) {
+        throw new BadRequestException(
+          `Broker Formal Escalation is locked until 1 day after sending the 3rd follow-up (currently ${elapsedDays} days elapsed).`,
+        );
+      }
+
+      nextRecourseLevel = 2;
+      eventType = ClaimEventType.BROKER_ESCALATION_SENT;
+      stageName = 'Broker Formal Escalation';
+      description = `Broker Formal Escalation initiated manually by driver (1 day after 3rd follow-up)`;
+    } else {
+      let previousActionDate: Date | null = null;
+      if (claim.recourse_level === 2) {
+        previousActionDate = claim.broker_escalation_at;
+      } else if (claim.recourse_level === 3) {
+        previousActionDate = claim.demand_letter_at;
+      } else if (claim.recourse_level === 4) {
+        previousActionDate = claim.bond_claim_at;
+      } else if (claim.recourse_level === 5) {
+        previousActionDate = claim.credit_report_at;
+      } else if (claim.recourse_level === 6) {
+        previousActionDate = claim.fmcsa_complaint_at;
+      } else if (claim.recourse_level === 7) {
+        previousActionDate = claim.load_board_report_at;
+      } else if (claim.recourse_level === 8) {
+        previousActionDate = claim.small_claims_filed_at;
+      }
+
+      if (!previousActionDate) {
+        throw new BadRequestException(
+          `Cannot escalate. Action for recourse level ${claim.recourse_level} has not been recorded.`,
+        );
+      }
+
+      const diffTime = now.getTime() - previousActionDate.getTime();
+      elapsedDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+      if (claim.recourse_level === 2) {
+        requiredGapDays = 6;
+        nextRecourseLevel = 3;
+        eventType = ClaimEventType.DEMAND_LETTER_MAILED;
+        stageName = 'Certified Demand Letter';
+      } else if (claim.recourse_level === 3) {
+        requiredGapDays = 4;
+        nextRecourseLevel = 4;
+        eventType = ClaimEventType.BOND_CLAIM_FILED;
+        stageName = 'Broker Bond Claim (BMC-84/85)';
+      } else if (claim.recourse_level === 4) {
+        requiredGapDays = 5;
+        nextRecourseLevel = 5;
+        eventType = ClaimEventType.CREDIT_REPORT_SUBMITTED;
+        stageName = 'Credit Bureau Report';
+      } else if (claim.recourse_level === 5) {
+        requiredGapDays = 5;
+        nextRecourseLevel = 6;
+        eventType = ClaimEventType.FMCSA_COMPLAINT_FILED;
+        stageName = 'FMCSA Complaint';
+      } else if (claim.recourse_level === 6) {
+        requiredGapDays = 5;
+        nextRecourseLevel = 7;
+        eventType = ClaimEventType.LOAD_BOARD_REVIEW_POSTED;
+        stageName = 'Load Board Negative Report';
+      } else if (claim.recourse_level === 7) {
+        requiredGapDays = 5;
+        nextRecourseLevel = 8;
+        eventType = ClaimEventType.SMALL_CLAIMS_FILED;
+        stageName = 'Small Claims Court Filing';
+      } else if (claim.recourse_level === 8) {
+        requiredGapDays = 15;
+        nextRecourseLevel = 9;
+        eventType = ClaimEventType.COLLECTIONS_REFERRED;
+        stageName = 'Collections / Attorney Referral';
+      } else {
+        throw new BadRequestException(
+          'Claim is already at the highest recourse level',
+        );
+      }
+
+      if (elapsedDays < requiredGapDays) {
+        throw new BadRequestException(
+          `Cannot escalate to ${stageName} yet. This stage unlocks ${requiredGapDays} days after Level ${claim.recourse_level} action (currently ${elapsedDays} days elapsed).`,
+        );
+      }
+
+      description = `${stageName} initiated manually by driver (${elapsedDays} days after Level ${claim.recourse_level})`;
+    }
+
+    const updatedClaim = await this.prisma.$transaction(async (tx) => {
+      const updateData: any = {
+        recourse_level: nextRecourseLevel,
+        followup_due_at: null,
+      };
+
+      if (nextRecourseLevel === 2) {
+        updateData.broker_escalation_at = now;
+      } else if (nextRecourseLevel === 3) {
+        updateData.demand_letter_at = now;
+      } else if (nextRecourseLevel === 4) {
+        updateData.bond_claim_at = now;
+      } else if (nextRecourseLevel === 5) {
+        updateData.credit_report_at = now;
+      } else if (nextRecourseLevel === 6) {
+        updateData.fmcsa_complaint_at = now;
+      } else if (nextRecourseLevel === 7) {
+        updateData.load_board_report_at = now;
+      } else if (nextRecourseLevel === 8) {
+        updateData.small_claims_filed_at = now;
+      } else if (nextRecourseLevel === 9) {
+        updateData.collections_referred_at = now;
+      }
+
+      // Update recourse level and specific stage timestamp
+      const updated = await tx.claim.update({
+        where: { id: claim.id },
+        data: updateData,
+      });
+
+      // Create event
+      await tx.claimEvent.create({
+        data: {
+          claim_id: claim.id,
+          type: eventType,
+          recourse_level: nextRecourseLevel,
+          description,
+        },
+      });
+
+      return updated;
+    });
+
+    return ResponseHelper.success({
+      message: `Claim escalated successfully to ${stageName}`,
+      data: updatedClaim,
+    });
+  }
+
+  async processNightlyClaims() {
+    const claims = await this.prisma.claim.findMany({
+      where: {
+        status: ClaimStatus.SUBMITTED,
+        recourse_level: { lte: 1 },
+      },
+    });
+
+    const now = new Date();
+
+    for (const claim of claims) {
+      if (!claim.sent_at) continue;
+
+      const diffTime = Math.max(0, now.getTime() - claim.sent_at.getTime());
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+      let targetFollowUpCount = claim.followup_count;
+
+      if (diffDays >= 14) {
+        targetFollowUpCount = 3;
+      } else if (diffDays >= 7) {
+        targetFollowUpCount = 2;
+      } else if (diffDays >= 2) {
+        targetFollowUpCount = 1;
+      }
+
+      if (targetFollowUpCount > claim.followup_count) {
+        try {
+          await this.prisma.claim.update({
+            where: { id: claim.id },
+            data: {
+              followup_count: targetFollowUpCount,
+            },
+          });
+        } catch (err) {
+          console.error(
+            `Error auto-incrementing follow-up count for claim ${claim.id}:`,
+            err,
+          );
+        }
+      }
+    }
   }
 }

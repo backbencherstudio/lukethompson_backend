@@ -648,6 +648,13 @@ model Claim {
   paid_at                 DateTime?
   denied_at               DateTime?
   recourse_started_at     DateTime?
+  broker_escalation_at    DateTime?
+  demand_letter_at        DateTime?
+  bond_claim_at           DateTime?
+  credit_report_at        DateTime?
+  fmcsa_complaint_at      DateTime?
+  load_board_report_at    DateTime?
+  small_claims_filed_at   DateTime?
   collections_referred_at DateTime?
 
   // --- Denial Details ---

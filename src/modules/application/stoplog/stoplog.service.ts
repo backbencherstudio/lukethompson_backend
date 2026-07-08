@@ -633,7 +633,7 @@ export class StopLogService {
           date: item.created_at,
           amount: amount.toFixed(2),
           claim_status: item?.claim?.status ?? null,
-          status: status,
+          status: item?.status,
         };
       }),
       meta_data: {
@@ -774,9 +774,9 @@ export class StopLogService {
         departed_at: stoplog.departed_at,
         bol_number: stoplog.bol_number,
         gps_coordinates,
-        rate_per_hour: stoplog.user?.rate_per_hour,
-        free_wait_time: stoplog.user?.free_wait_time,
-        billable_time: payableTimeFormatted,
+        rate_per_hour: stoplog.user?.rate_per_hour + '',
+        free_wait_time: stoplog.user?.free_wait_time + '',
+        billable_time: payableTimeFormatted + 'h',
         billable_time_text: this.formatHoursMinutes(payableTime),
         arrival_departure_time: totalTime,
         address,
@@ -784,7 +784,9 @@ export class StopLogService {
         lost: totalAmount.toFixed(2),
         detention_summary_pdf,
         attachments,
-        claim: stoplog.claim
+        broker_email: stoplog.broker_email,
+        recipient_email: stoplog?.claim?.recipient_email,
+        claim: stoplog?.claim
           ? {
               id: stoplog.claim.id,
               status: stoplog.claim.status,

@@ -20,12 +20,17 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { MarkPaidDto, MarkDeniedDto, SubmitClaimDto } from './dto/update-claim.dto';
+import {
+  MarkPaidDto,
+  MarkDeniedDto,
+  SubmitClaimDto,
+} from './dto/update-claim.dto';
 import { SendFollowUpDto } from './dto/send-follow-up.dto';
 import {
   ClaimListResponseDto,
   ClaimActionResponseDto,
   ClaimSubmitResponseDto,
+  ClaimDetailResponseDto,
 } from './dto/response-claim.dto';
 
 @ApiTags('Application claim')
@@ -48,6 +53,36 @@ export class ClaimController {
   @Get()
   getAllClaims(@Query() query: QueryClaimDto, @GetUser('id') user_id: string) {
     return this.claimService.getAllClaims(query, user_id);
+  }
+
+  @ApiOperation({
+    summary: 'Get single claim by ID',
+    description:
+      'Retrieves details for a specific claim by ID, including its associated stop log, attachments, timeline events, and current recourse level details.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Claim fetched successfully',
+    type: ClaimDetailResponseDto,
+  })
+  @Get(':id')
+  getOneClaim(@Param('id') id: string, @GetUser('id') user_id: string) {
+    return this.claimService.getOneClaim(id, user_id);
+  }
+
+  @ApiOperation({
+    summary: 'Escalate a claim to the next recourse level',
+    description:
+      'Allows the driver to manually escalate a claim to the next recourse stage sequentially, validating that the required duration from submission has elapsed.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Claim escalated successfully',
+    type: ClaimActionResponseDto,
+  })
+  @Post(':id/escalate')
+  escalateClaim(@Param('id') id: string, @GetUser('id') user_id: string) {
+    return this.claimService.escalateClaim(id, user_id);
   }
 
   @ApiOperation({
