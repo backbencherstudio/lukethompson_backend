@@ -543,7 +543,7 @@ export class StopLogService {
       user_id,
     };
 
-    if (status === QueryStopLogStatus.PROGRESS) {
+    if (status === QueryStopLogStatus.ACTIVE) {
       where.status = {
         not: PrismaStopLogStatus.COMPLETED,
       };
@@ -597,6 +597,11 @@ export class StopLogService {
             free_wait_time: true,
           },
         },
+        claim: {
+          select: {
+            status: true,
+          },
+        },
         arrival_location: true,
         facility_address: true,
       },
@@ -627,10 +632,8 @@ export class StopLogService {
           shipper_facility_id: item.shipper_facility_id,
           date: item.created_at,
           amount: amount.toFixed(2),
-          status:
-            item.status === PrismaStopLogStatus.COMPLETED //TODO
-              ? QueryStopLogStatus.COMPLETED
-              : QueryStopLogStatus.PROGRESS,
+          claim_status: item?.claim?.status ?? null,
+          status: status,
         };
       }),
       meta_data: {

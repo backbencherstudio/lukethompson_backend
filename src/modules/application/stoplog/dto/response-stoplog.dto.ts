@@ -94,6 +94,15 @@ export class StopLogListItemDto {
 
   @ApiProperty({ example: 'COMPLETED', enum: ['COMPLETED', 'PROGRESS'] })
   status: string;
+
+  @ApiProperty({
+    example: 'DRAFT',
+    enum: ['DRAFT', 'SUBMITTED', 'PAID', 'DENIED'],
+    nullable: true,
+    required: false,
+    description: 'Status of the claim associated with the stoplog, if any',
+  })
+  claim_status?: string | null;
 }
 
 export class StopLogListMetaFiltersDto {

@@ -4,7 +4,7 @@ import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export enum StopLogStatus {
   ALL = 'ALL',
-  PROGRESS = 'PROGRESS',
+  ACTIVE = 'ACTIVE',
   COMPLETED = 'COMPLETED',
 }
 
