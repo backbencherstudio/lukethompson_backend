@@ -12,9 +12,7 @@
       color: #f1f5f9;
       font-family: 'Inter', sans-serif;
       margin: 0;
-      padding: 40px;
-      display: flex;
-      justify-content: center;
+      padding: 0;
     }
 
     .container {
@@ -209,75 +207,113 @@
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- Header -->
-    <div class="header">
-      <div class="logo-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 01.293.707V15a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17h14" />
-        </svg>
-      </div>
-      <div class="header-text">
-        <div class="brand-name">GET<span>DOCK</span>PAY</div>
-        <div class="tagline">Review details before sending</div>
-      </div>
-    </div>
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #0f172a; width: 100%;">
+    <tr>
+      <td align="center" style="padding: 40px 16px; background-color: #0f172a;">
+        <!--[if mso]>
+        <table align="center" border="0" cellspacing="0" cellpadding="0" width="480" style="width: 480px;">
+        <tr>
+        <td align="left" valign="top">
+        <![endif]-->
+        <div class="container" style="text-align: left; margin: 0 auto; width: 100%; max-width: 480px;">
+          <!-- Header Table -->
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 24px; width: 100%;">
+            <tr>
+              <td valign="middle" style="width: 48px; padding-right: 12px;">
+                <div class="logo-icon" style="margin-right: 0;">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 01.293.707V15a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17h14" />
+                  </svg>
+                </div>
+              </td>
+              <td valign="middle" align="left">
+                <div class="header-text">
+                  <div class="brand-name" style="margin: 0; font-family: 'Inter', sans-serif;">GET<span>DOCK</span>PAY</div>
+                  <div class="tagline" style="margin: 2px 0 0 0; font-family: 'Inter', sans-serif;">Review details before sending</div>
+                </div>
+              </td>
+            </tr>
+          </table>
 
-    <!-- Claim Amount Card -->
-    <div class="amount-card">
-      <div class="amount-title">Detention Claim Amount</div>
-      <div class="amount-value"><%= claimAmount %></div>
-      <div class="amount-details">
-        <span><%= billableDurationStr %> billable</span>
-        <span class="dot"></span>
-        <span>$<%= detentionRate %>/hr detention rate</span>
-        <span class="dot"></span>
-        <span><%= freeWaitTimeStr %> free time</span>
-      </div>
-    </div>
+          <!-- Claim Amount Card -->
+          <div class="amount-card">
+            <div class="amount-title">Detention Claim Amount</div>
+            <div class="amount-value"><%= claimAmount %></div>
+            <div class="amount-details" style="font-size: 13px; color: #94a3b8; text-align: left; margin-top: 8px; font-family: 'Inter', sans-serif;">
+              <%= billableDurationStr %> billable &bull; $<%= detentionRate %>/hr detention rate &bull; <%= freeWaitTimeStr %> free time
+            </div>
+          </div>
 
-    <!-- Claim Details -->
-    <h3 class="section-title">Claim Details</h3>
-    <div class="details-card">
-      <div class="detail-row">
-        <span class="detail-label">Facility</span>
-        <span class="detail-value"><%= facilityName %></span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Arrival - Departure</span>
-        <span class="detail-value"><%= arrivalTimeStr %> -> <%= departureTimeStr %></span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">Billable Detention</span>
-        <span class="detail-value green"><%= billableDurationStr %></span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">BOL Number</span>
-        <span class="detail-value"><%= bolNumber || 'N/A' %></span>
-      </div>
-      <div class="detail-row">
-        <span class="detail-label">GPS Coordinates</span>
-        <span class="detail-value blue"><%= gpsStr %></span>
-      </div>
-    </div>
+          <!-- Claim Request Message -->
+          <% if (typeof isEmail !== 'undefined' && isEmail) { %>
+            <div style="line-height: 1.6; color: #cbd5e1; font-size: 14px; margin-bottom: 28px; background-color: #1e293b; border-radius: 16px; padding: 20px; border: 1px solid #334155; font-family: 'Inter', sans-serif;">
+              <p style="margin-top: 0; font-weight: 600; font-size: 15px; color: #ffffff;">Hello,</p>
+              <p>This is a formal request for payment of the detention claim of <strong style="color: #10b981;"><%= claimAmount %></strong> for the stop log at <strong><%= facilityName %></strong>.</p>
+              <p style="margin-bottom: 0;">Please review the claim details and the attached detention summary PDF. If you have any questions, feel free to reply directly to this email.</p>
+            </div>
+          <% } %>
 
-    <!-- Proof Package -->
-    <h3 class="section-title">Proof Package</h3>
-    <div class="proof-list">
-      <% if (attachments && attachments.length > 0) { %>
-        <% attachments.forEach(function(att) { %>
-          <a href="<%= att.file_url %>" class="proof-button" target="_blank">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
-            </svg>
-            <span class="file-name"><%= att.file_name || 'Attachment' %></span>
-          </a>
-        <% }); %>
-      <% } else { %>
-        <div style="color: #94a3b8; font-size: 14px;">No attachments uploaded</div>
-      <% } %>
-    </div>
-  </div>
+          <!-- Claim Details -->
+          <h3 class="section-title">Claim Details</h3>
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; border-collapse: collapse; background-color: #1e293b; border-radius: 16px; border: 1px solid #334155; margin-bottom: 28px;">
+            <tr>
+              <td style="padding: 8px 16px;">
+                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="width: 100%; border-collapse: collapse;">
+                  <!-- Row 1: Facility -->
+                  <tr style="border-bottom: 1px solid #334155;">
+                    <td align="left" style="padding: 12px 0; font-size: 14px; color: #94a3b8; font-family: 'Inter', sans-serif;">Facility</td>
+                    <td align="right" style="padding: 12px 0; font-size: 14px; font-weight: 500; color: #ffffff; font-family: 'Inter', sans-serif;"><%= facilityName %></td>
+                  </tr>
+                  <!-- Row 2: Arrival - Departure -->
+                  <tr style="border-bottom: 1px solid #334155;">
+                    <td align="left" style="padding: 12px 0; font-size: 14px; color: #94a3b8; font-family: 'Inter', sans-serif;">Arrival - Departure</td>
+                    <td align="right" style="padding: 12px 0; font-size: 14px; font-weight: 500; color: #ffffff; font-family: 'Inter', sans-serif;"><%= arrivalTimeStr %> -> <%= departureTimeStr %></td>
+                  </tr>
+                  <!-- Row 3: Billable Detention -->
+                  <tr style="border-bottom: 1px solid #334155;">
+                    <td align="left" style="padding: 12px 0; font-size: 14px; color: #94a3b8; font-family: 'Inter', sans-serif;">Billable Detention</td>
+                    <td align="right" style="padding: 12px 0; font-size: 14px; font-weight: 600; color: #10b981; font-family: 'Inter', sans-serif;"><%= billableDurationStr %></td>
+                  </tr>
+                  <!-- Row 4: BOL Number -->
+                  <tr style="border-bottom: 1px solid #334155;">
+                    <td align="left" style="padding: 12px 0; font-size: 14px; color: #94a3b8; font-family: 'Inter', sans-serif;">BOL Number</td>
+                    <td align="right" style="padding: 12px 0; font-size: 14px; font-weight: 500; color: #ffffff; font-family: 'Inter', sans-serif;"><%= bolNumber || 'N/A' %></td>
+                  </tr>
+                  <!-- Row 5: GPS Coordinates -->
+                  <tr>
+                    <td align="left" style="padding: 12px 0; font-size: 14px; color: #94a3b8; font-family: 'Inter', sans-serif;">GPS Coordinates</td>
+                    <td align="right" style="padding: 12px 0; font-size: 14px; font-weight: 500; color: #3b82f6; text-decoration: underline; font-family: 'Inter', sans-serif;"><%= gpsStr %></td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+          </table>
+
+          <!-- Proof Package -->
+          <h3 class="section-title">Proof Package</h3>
+          <div class="proof-list">
+            <% if (attachments && attachments.length > 0) { %>
+              <% attachments.forEach(function(att) { %>
+                <a href="<%= att.file_url %>" class="proof-button" target="_blank">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                  </svg>
+                  <span class="file-name"><%= att.file_name || 'Attachment' %></span>
+                </a>
+              <% }); %>
+            <% } else { %>
+              <div style="color: #94a3b8; font-size: 14px;">No attachments uploaded</div>
+            <% } %>
+          </div>
+        </div>
+        <!--[if mso]>
+        </td>
+        </tr>
+        </table>
+        <![endif]-->
+      </td>
+    </tr>
+  </table>
 </body>
 </html>

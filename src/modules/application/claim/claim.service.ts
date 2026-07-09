@@ -533,7 +533,18 @@ export class ClaimService {
       currency: 'USD',
     }).format(Math.round(totalAmount));
 
-    let claimMessage = '';
+    const claimMessage = `Hello,
+
+This is a formal request for payment of the detention claim of ${claimAmountFormatted} for the stop log at ${claim.stop_log?.facility_name || 'facility'}.
+
+Claim Details:
+- BOL Number: ${claim.stop_log?.bol_number || 'N/A'}
+- Arrived At: ${claim.stop_log?.arrived_at}
+- Departed At: ${claim.stop_log?.departed_at || 'N/A'}
+- Billable Detention: ${formatDuration(payableTime)}
+
+You can view the detention summary PDF here:
+${pdfUrl}`;
 
     // 5. Handle EMAIL submission method
     if (dto.claim_method.toUpperCase() === 'EMAIL') {
@@ -575,6 +586,7 @@ export class ClaimService {
         subject,
         template: 'detention-summary',
         context: {
+          isEmail: true,
           claimAmount: claimAmountFormatted,
           billableDurationStr: formatDuration(payableTime),
           detentionRate: claim.user?.rate_per_hour || 0,
@@ -596,20 +608,6 @@ export class ClaimService {
           },
         ],
       });
-    } else {
-      // 6. Handle MESSAGE method: generate and return pre-formatted message text
-      claimMessage = `Hello,
-
-This is a formal request for payment of the detention claim of ${claimAmountFormatted} for the stop log at ${claim.stop_log?.facility_name || 'facility'}.
-
-Claim Details:
-- BOL Number: ${claim.stop_log?.bol_number || 'N/A'}
-- Arrived At: ${claim.stop_log?.arrived_at}
-- Departed At: ${claim.stop_log?.departed_at || 'N/A'}
-- Billable Detention: ${formatDuration(payableTime)}
-
-You can view the detention summary PDF here:
-${pdfUrl}`;
     }
 
     // 7. Perform sequential database updates inside transaction
