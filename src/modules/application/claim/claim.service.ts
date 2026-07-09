@@ -462,20 +462,10 @@ export class ClaimService {
     });
   }
 
-  async submitClaim(id: string, dto: SubmitClaimDto, user_id: string) {
-    // 1. Verify recipient email exists in the database User table
-    const recipientUser = await this.prisma.user.findFirst({
-      where: { email: { equals: dto.recipient_email, mode: 'insensitive' } },
-    });
-    if (!recipientUser) {
-      throw new BadRequestException(
-        'Recipient email does not exist in the database',
-      );
-    }
-
+  async submitClaim(stoplog_id: string, dto: SubmitClaimDto, user_id: string) {
     // 2. Fetch the claim with stop log and user details
     const claim = await this.prisma.claim.findFirst({
-      where: { id, user_id },
+      where: { stop_log_id: stoplog_id, user_id },
       include: {
         stop_log: {
           include: {

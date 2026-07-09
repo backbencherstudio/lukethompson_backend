@@ -156,12 +156,12 @@ export class ClaimController {
     description: 'Claim submitted successfully',
     type: ClaimSubmitResponseDto,
   })
-  @Post(':id/submit')
+  @Post(':stoplog_id/submit')
   submitClaim(
-    @Param('id') id: string,
+    @Param('stoplog_id') stoplog_id: string,
     @Body() dto: SubmitClaimDto,
     @GetUser('id') user_id: string,
   ) {
-    return this.claimService.submitClaim(id, dto, user_id);
+    return this.claimService.submitClaim(stoplog_id, dto, user_id);
   }
 }
