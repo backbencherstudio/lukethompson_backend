@@ -38,7 +38,10 @@ export class NotificationService {
         };
       }
 
-      if (userDetails.type === Role.ADMIN || userDetails.type === Role.SU_ADMIN) {
+      if (
+        userDetails.type === Role.ADMIN ||
+        userDetails.type === Role.SU_ADMIN
+      ) {
         where_condition['OR'] = [
           { receiver_id: { equals: user_id } },
           { receiver_id: { equals: null } },
@@ -167,7 +170,10 @@ export class NotificationService {
       }
 
       const where_condition = {};
-      if (userDetails.type === Role.ADMIN || userDetails.type === Role.SU_ADMIN) {
+      if (
+        userDetails.type === Role.ADMIN ||
+        userDetails.type === Role.SU_ADMIN
+      ) {
         where_condition['OR'] = [
           { receiver_id: { equals: user_id } },
           { receiver_id: { equals: null } },

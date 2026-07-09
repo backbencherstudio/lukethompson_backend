@@ -14,9 +14,13 @@ export class ClaimProcessCron {
     this.logger.log('Starting nightly claim follow-up count auto-increment...');
     try {
       await this.claimService.processNightlyClaims();
-      this.logger.log('Nightly claim follow-up count auto-increment completed.');
+      this.logger.log(
+        'Nightly claim follow-up count auto-increment completed.',
+      );
     } catch (error) {
-      this.logger.error(`Error during nightly claim follow-up count auto-increment: ${error.message}`);
+      this.logger.error(
+        `Error during nightly claim follow-up count auto-increment: ${error.message}`,
+      );
     }
   }
 }

@@ -463,7 +463,7 @@ export class ClaimService {
   }
 
   async submitClaim(stoplog_id: string, dto: SubmitClaimDto, user_id: string) {
-    // 2. Fetch the claim with stop log and user details
+    // 1. Fetch the claim with stop log and user details
     const claim = await this.prisma.claim.findFirst({
       where: { stop_log_id: stoplog_id, user_id },
       include: {
@@ -481,7 +481,7 @@ export class ClaimService {
       throw new NotFoundException('Claim not found');
     }
 
-    // 3. Retrieve the generated DETENTION_SUMMARY PDF attachment
+    // 2. Retrieve the generated DETENTION_SUMMARY PDF attachment
     const pdfAttachment = await this.prisma.attachment.findFirst({
       where: {
         claim_id: claim.id,
@@ -494,7 +494,7 @@ export class ClaimService {
       );
     }
 
-    // 4. Generate pre-signed URL for the PDF (valid for 2 years)
+    // 3. Generate pre-signed URL for the PDF (valid for 2 years)
     const pdfUrl = NajimStorage.url(pdfAttachment.file_url, {
       signed: true,
       expires: 63072000,
@@ -533,7 +533,9 @@ export class ClaimService {
       currency: 'USD',
     }).format(Math.round(totalAmount));
 
-    const claimMessage = `Hello,
+    let claimMessage = '';
+    if (dto.claim_method.toUpperCase() === 'MESSAGE') {
+      claimMessage = `Hello,
 
 This is a formal request for payment of the detention claim of ${claimAmountFormatted} for the stop log at ${claim.stop_log?.facility_name || 'facility'}.
 
@@ -545,8 +547,9 @@ Claim Details:
 
 You can view the detention summary PDF here:
 ${pdfUrl}`;
+    }
 
-    // 5. Handle EMAIL submission method
+    // 4. Handle EMAIL submission method
     if (dto.claim_method.toUpperCase() === 'EMAIL') {
       const cc = [];
       if (dto.broker_email && dto.broker_email !== dto.recipient_email) {
@@ -610,8 +613,17 @@ ${pdfUrl}`;
       });
     }
 
-    // 7. Perform sequential database updates inside transaction
+    // 5. Perform sequential database updates inside transaction
     const updatedClaim = await this.prisma.$transaction(async (tx) => {
+      if (dto.broker_email) {
+        await tx.stopLog.update({
+          where: { id: claim.stop_log_id },
+          data: {
+            broker_email: dto.broker_email,
+          },
+        });
+      }
+
       const updated = await tx.claim.update({
         where: { id: claim.id },
         data: {

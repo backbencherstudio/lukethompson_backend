@@ -10,7 +10,10 @@ export class AdminShipperRatingUserDto {
   @ApiProperty({ example: 'johndoe@example.com' })
   email: string;
 
-  @ApiProperty({ example: 'https://storage.googleapis.com/bucket/avatar.jpg', nullable: true })
+  @ApiProperty({
+    example: 'https://storage.googleapis.com/bucket/avatar.jpg',
+    nullable: true,
+  })
   avatar: string | null;
 }
 
@@ -52,13 +55,25 @@ export class AdminShipperRatingListResponseDto {
   @ApiProperty({ example: true })
   success: boolean;
 
-  @ApiProperty({ example: 'Ratings retrieved successfully', required: false, nullable: true })
+  @ApiProperty({
+    example: 'Ratings retrieved successfully',
+    required: false,
+    nullable: true,
+  })
   message?: string;
 
-  @ApiProperty({ type: [AdminShipperRatingItemDto], required: false, nullable: true })
+  @ApiProperty({
+    type: [AdminShipperRatingItemDto],
+    required: false,
+    nullable: true,
+  })
   data?: AdminShipperRatingItemDto[];
 
-  @ApiProperty({ type: AdminShipperRatingMetaDto, required: false, nullable: true })
+  @ApiProperty({
+    type: AdminShipperRatingMetaDto,
+    required: false,
+    nullable: true,
+  })
   meta_data?: AdminShipperRatingMetaDto;
 }
 
@@ -77,10 +92,18 @@ export class AdminShipperStatsResponseDto {
   @ApiProperty({ example: true })
   success: boolean;
 
-  @ApiProperty({ example: 'Shipper statistics retrieved successfully', required: false, nullable: true })
+  @ApiProperty({
+    example: 'Shipper statistics retrieved successfully',
+    required: false,
+    nullable: true,
+  })
   message?: string;
 
-  @ApiProperty({ type: AdminShipperStatsDataDto, required: false, nullable: true })
+  @ApiProperty({
+    type: AdminShipperStatsDataDto,
+    required: false,
+    nullable: true,
+  })
   data?: AdminShipperStatsDataDto;
 }
 

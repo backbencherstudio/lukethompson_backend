@@ -3,7 +3,10 @@ import { Type } from 'class-transformer';
 import { IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class AdminQueryStopLogDto {
-  @ApiPropertyOptional({ example: 1, description: 'Page number for pagination' })
+  @ApiPropertyOptional({
+    example: 1,
+    description: 'Page number for pagination',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()

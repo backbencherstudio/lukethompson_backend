@@ -17,7 +17,8 @@ export class StripeController {
 
   @ApiOperation({
     summary: 'Stripe Webhook Handler',
-    description: 'Handles incoming asynchronous events from Stripe (e.g. successful checkout sessions, subscriptions updates/cancellations, payment intents status updates).',
+    description:
+      'Handles incoming asynchronous events from Stripe (e.g. successful checkout sessions, subscriptions updates/cancellations, payment intents status updates).',
   })
   @ApiResponse({
     status: 200,

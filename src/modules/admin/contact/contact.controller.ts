@@ -32,7 +32,10 @@ export class ContactController {
   constructor(private readonly contactService: ContactService) {}
 
   @ApiOperation({ summary: 'Create contact' })
-  @ApiResponse({ status: 201, description: 'Contact message submitted successfully.' })
+  @ApiResponse({
+    status: 201,
+    description: 'Contact message submitted successfully.',
+  })
   @Post()
   async create(@Body() createContactDto: CreateContactDto) {
     try {
@@ -47,7 +50,10 @@ export class ContactController {
   }
 
   @ApiOperation({ summary: 'Read all contacts' })
-  @ApiResponse({ status: 200, description: 'List of contact messages retrieved successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'List of contact messages retrieved successfully.',
+  })
   @Get()
   async findAll(@Query() query: { q?: string; status?: number }) {
     try {
@@ -68,7 +74,10 @@ export class ContactController {
   }
 
   @ApiOperation({ summary: 'Read one contact' })
-  @ApiResponse({ status: 200, description: 'Contact message details retrieved successfully.' })
+  @ApiResponse({
+    status: 200,
+    description: 'Contact message details retrieved successfully.',
+  })
   @Get(':id')
   async findOne(@Param('id') id: string) {
     try {

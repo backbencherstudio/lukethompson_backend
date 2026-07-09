@@ -25,18 +25,24 @@ export class PdfProcessor extends WorkerHost {
 
   @OnWorkerEvent('completed')
   onCompleted(job: Job) {
-    this.logger.log(`Job ${job.id} with name ${job.name} completed successfully`);
+    this.logger.log(
+      `Job ${job.id} with name ${job.name} completed successfully`,
+    );
   }
 
   @OnWorkerEvent('failed')
   onFailed(job: Job, error: Error) {
-    this.logger.error(`Job ${job.id} with name ${job.name} failed with error: ${error.message}`);
+    this.logger.error(
+      `Job ${job.id} with name ${job.name} failed with error: ${error.message}`,
+    );
   }
 
   async process(job: Job): Promise<any> {
     const { stopLogId, claimId } = job.data;
 
-    this.logger.log(`Processing PDF generation for stopLogId: ${stopLogId}, claimId: ${claimId}`);
+    this.logger.log(
+      `Processing PDF generation for stopLogId: ${stopLogId}, claimId: ${claimId}`,
+    );
 
     const stoplog = await this.prisma.stopLog.findUnique({
       where: { id: stopLogId },
@@ -54,7 +60,9 @@ export class PdfProcessor extends WorkerHost {
     }
 
     if (!stoplog.departed_at) {
-      this.logger.error(`StopLog with ID ${stopLogId} does not have departed_at timestamp`);
+      this.logger.error(
+        `StopLog with ID ${stopLogId} does not have departed_at timestamp`,
+      );
       return;
     }
 
@@ -63,7 +71,10 @@ export class PdfProcessor extends WorkerHost {
       const arrived = new Date(stoplog.arrived_at).getTime();
       const departed = new Date(stoplog.departed_at).getTime();
       const totalTime = Math.max(0, (departed - arrived) / (1000 * 60 * 60));
-      const payableTime = Math.max(0, totalTime - (stoplog.user?.free_wait_time || 0));
+      const payableTime = Math.max(
+        0,
+        totalTime - (stoplog.user?.free_wait_time || 0),
+      );
       const totalAmount = payableTime * (stoplog.user?.rate_per_hour || 0);
 
       // Formatting helper functions
@@ -92,7 +103,10 @@ export class PdfProcessor extends WorkerHost {
         .filter((att) => att.type !== AttachmentType.DETENTION_SUMMARY)
         .map((att) => ({
           file_name: att.file_name || 'Attachment',
-          file_url: NajimStorage.url(att.file_url, { signed: true, expires: 63072000 }),
+          file_url: NajimStorage.url(att.file_url, {
+            signed: true,
+            expires: 63072000,
+          }),
         }));
 
       const gpsStr =
@@ -106,11 +120,13 @@ export class PdfProcessor extends WorkerHost {
       }).format(Math.round(totalAmount));
 
       // Resolve templates directory path (supports dev / dist production compilation)
-      const isProd = process.env.NODE_ENV === 'production' || fs.existsSync(path.join(process.cwd(), 'dist'));
+      const isProd =
+        process.env.NODE_ENV === 'production' ||
+        fs.existsSync(path.join(process.cwd(), 'dist'));
       const templatesDir = isProd
         ? path.join(process.cwd(), 'dist/mail/templates')
         : path.join(process.cwd(), 'src/mail/templates');
-      
+
       const templatePath = path.join(templatesDir, 'detention-summary.ejs');
       if (!fs.existsSync(templatePath)) {
         throw new Error(`EJS Template file not found at: ${templatePath}`);
@@ -174,7 +190,9 @@ export class PdfProcessor extends WorkerHost {
           try {
             await NajimStorage.delete(existingSummary.file_url);
           } catch (err) {
-            this.logger.error(`Failed to delete old summary PDF from storage: ${err.message}`);
+            this.logger.error(
+              `Failed to delete old summary PDF from storage: ${err.message}`,
+            );
           }
           await tx.attachment.delete({
             where: { id: existingSummary.id },
@@ -194,9 +212,14 @@ export class PdfProcessor extends WorkerHost {
         });
       });
 
-      this.logger.log(`Detention summary PDF generated and attached successfully for stoplog: ${stoplog.id}`);
+      this.logger.log(
+        `Detention summary PDF generated and attached successfully for stoplog: ${stoplog.id}`,
+      );
     } catch (error) {
-      this.logger.error(`Error generating summary PDF for stoplog ${stoplog.id}: ${error.message}`, error.stack);
+      this.logger.error(
+        `Error generating summary PDF for stoplog ${stoplog.id}: ${error.message}`,
+        error.stack,
+      );
       throw error;
     }
   }

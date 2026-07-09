@@ -375,16 +375,26 @@ export class StopLogDetailClaimDto {
   @ApiProperty({ example: 'cl0a1b2c3d4e5f6g7h8i9j0k' })
   id: string;
 
-  @ApiProperty({ example: 'DRAFT', enum: ['DRAFT', 'SUBMITTED', 'PAID', 'DENIED'] })
+  @ApiProperty({
+    example: 'DRAFT',
+    enum: ['DRAFT', 'SUBMITTED', 'PAID', 'DENIED'],
+  })
   status: string;
 
   @ApiProperty({ example: 250 })
   amount: number;
 
-  @ApiProperty({ example: 0, description: 'Current recourse step / level (e.g. 0 = initial, 1 = followup, etc.)' })
+  @ApiProperty({
+    example: 0,
+    description:
+      'Current recourse step / level (e.g. 0 = initial, 1 = followup, etc.)',
+  })
   level: number;
 
-  @ApiProperty({ example: 'Draft / Initial Claim', description: 'Name of the current recourse level' })
+  @ApiProperty({
+    example: 'Draft / Initial Claim',
+    description: 'Name of the current recourse level',
+  })
   level_name: string;
 
   @ApiProperty({ example: 1, description: 'Number of follow-ups sent' })
@@ -410,7 +420,11 @@ export class StopLogDetailCompletedDto {
   @ApiProperty({ example: 'BOL-123', required: false, nullable: true })
   bol_number?: string;
 
-  @ApiProperty({ example: '32.1221, -112.1221', required: false, nullable: true })
+  @ApiProperty({
+    example: '32.1221, -112.1221',
+    required: false,
+    nullable: true,
+  })
   gps_coordinates?: string;
 
   @ApiProperty({ example: 100 })

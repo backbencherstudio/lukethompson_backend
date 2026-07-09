@@ -245,7 +245,7 @@ export class UserService {
     try {
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      
+
       const startOfToday = new Date(now);
       startOfToday.setHours(0, 0, 0, 0);
 

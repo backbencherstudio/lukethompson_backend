@@ -174,25 +174,49 @@ export class ClaimDetailDataDto {
   @ApiProperty({ example: 150, required: false, nullable: true })
   paid_amount?: number;
 
-  @ApiProperty({ example: '2026-06-28T05:27:44Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-06-28T05:27:44Z',
+    required: false,
+    nullable: true,
+  })
   sent_at?: Date;
 
-  @ApiProperty({ example: '2026-06-30T10:00:00Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-06-30T10:00:00Z',
+    required: false,
+    nullable: true,
+  })
   paid_at?: Date;
 
-  @ApiProperty({ example: '2026-06-29T08:00:00Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-06-29T08:00:00Z',
+    required: false,
+    nullable: true,
+  })
   denied_at?: Date;
 
   @ApiProperty({ example: 'Broker API', required: false, nullable: true })
   denied_by?: string;
 
-  @ApiProperty({ example: 'No proof of detention', required: false, nullable: true })
+  @ApiProperty({
+    example: 'No proof of detention',
+    required: false,
+    nullable: true,
+  })
   denial_reason?: string;
 
-  @ApiProperty({ example: 'broker@example.com', required: false, nullable: true })
+  @ApiProperty({
+    example: 'broker@example.com',
+    required: false,
+    nullable: true,
+  })
   recipient_email?: string;
 
-  @ApiProperty({ example: 'carrier-sales@choptank.com', required: false, nullable: true })
+  @ApiProperty({
+    example: 'carrier-sales@choptank.com',
+    required: false,
+    nullable: true,
+  })
   broker_email?: string;
 
   @ApiProperty({ example: 'EMAIL' })
@@ -207,10 +231,18 @@ export class ClaimDetailDataDto {
   @ApiProperty({ example: 1 })
   followup_count: number;
 
-  @ApiProperty({ example: '2026-07-05T05:27:44Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-07-05T05:27:44Z',
+    required: false,
+    nullable: true,
+  })
   last_follow_up_at?: Date;
 
-  @ApiProperty({ example: '2026-07-12T05:27:44Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-07-12T05:27:44Z',
+    required: false,
+    nullable: true,
+  })
   followup_due_at?: Date;
 
   @ApiProperty({ example: 'USPS-123456789', required: false, nullable: true })
@@ -222,31 +254,67 @@ export class ClaimDetailDataDto {
   @ApiProperty({ example: 'SC-54321', required: false, nullable: true })
   small_claims_case_number?: string;
 
-  @ApiProperty({ example: '2026-07-01T10:00:00Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-07-01T10:00:00Z',
+    required: false,
+    nullable: true,
+  })
   broker_escalation_at?: Date;
 
-  @ApiProperty({ example: '2026-07-07T10:00:00Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-07-07T10:00:00Z',
+    required: false,
+    nullable: true,
+  })
   demand_letter_at?: Date;
 
-  @ApiProperty({ example: '2026-07-11T10:00:00Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-07-11T10:00:00Z',
+    required: false,
+    nullable: true,
+  })
   bond_claim_at?: Date;
 
-  @ApiProperty({ example: '2026-07-16T10:00:00Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-07-16T10:00:00Z',
+    required: false,
+    nullable: true,
+  })
   credit_report_at?: Date;
 
-  @ApiProperty({ example: '2026-07-21T10:00:00Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-07-21T10:00:00Z',
+    required: false,
+    nullable: true,
+  })
   fmcsa_complaint_at?: Date;
 
-  @ApiProperty({ example: '2026-07-26T10:00:00Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-07-26T10:00:00Z',
+    required: false,
+    nullable: true,
+  })
   load_board_report_at?: Date;
 
-  @ApiProperty({ example: '2026-07-31T10:00:00Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-07-31T10:00:00Z',
+    required: false,
+    nullable: true,
+  })
   small_claims_filed_at?: Date;
 
-  @ApiProperty({ example: '2026-08-15T10:00:00Z', required: false, nullable: true })
+  @ApiProperty({
+    example: '2026-08-15T10:00:00Z',
+    required: false,
+    nullable: true,
+  })
   collections_referred_at?: Date;
 
-  @ApiProperty({ type: ClaimDetailAttachmentDto, required: false, nullable: true })
+  @ApiProperty({
+    type: ClaimDetailAttachmentDto,
+    required: false,
+    nullable: true,
+  })
   detention_summary_pdf?: ClaimDetailAttachmentDto;
 
   @ApiProperty({ type: [ClaimDetailAttachmentDto] })
@@ -266,4 +334,3 @@ export class ClaimDetailResponseDto {
   @ApiProperty({ type: ClaimDetailDataDto })
   data: ClaimDetailDataDto;
 }
-
