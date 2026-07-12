@@ -285,8 +285,8 @@ export class ClaimService {
       data: {
         status: ClaimStatus.DENIED,
         denied_at: new Date(),
-        denied_by: dto.denied_by,
-        denial_reason: dto.denial_reason,
+        denied_by: dto.denied_by ?? claim?.denied_by,
+        denial_reason: dto.denial_reason ?? claim?.denial_reason,
       },
     });
 

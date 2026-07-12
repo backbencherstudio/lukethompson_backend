@@ -28,6 +28,7 @@ export class MarkPaidDto {
   @ApiPropertyOptional({
     example: 135,
     description: 'The amount actually paid',
+    required: false,
   })
   @IsOptional()
   @IsNumber()
@@ -40,7 +41,7 @@ export class MarkDeniedDto {
     example: 'Broker John Doe',
     description: 'Who denied the claim',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   denied_by: string;
 
@@ -48,7 +49,7 @@ export class MarkDeniedDto {
     example: 'Rate confirmation was not signed.',
     description: 'The reason for denial',
   })
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
   denial_reason: string;
 }

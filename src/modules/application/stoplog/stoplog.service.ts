@@ -796,6 +796,8 @@ export class StopLogService {
                 RECOURSE_LEVELS[stoplog.claim.recourse_level]?.name ||
                 'Unknown Stage',
               followup_count: stoplog.claim.followup_count,
+              send_method: stoplog.claim.send_method,
+              sent_at: stoplog.claim.sent_at,
             }
           : null,
       },

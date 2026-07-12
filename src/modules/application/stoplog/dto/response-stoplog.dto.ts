@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ClaimSendMethod } from 'prisma/generated/enums';
 
 // --- Record/Update Step Response ---
 export class StopLogStepDataDto {
@@ -399,6 +400,22 @@ export class StopLogDetailClaimDto {
 
   @ApiProperty({ example: 1, description: 'Number of follow-ups sent' })
   followup_count: number;
+
+  @ApiProperty({
+    example: 'MAIL',
+    enum: ['MAIL', 'SMS'],
+    description:
+      'Method used to send the claim: MAIL (email), SMS (text message), or null if claim was manually generated.',
+    nullable: true,
+  })
+  send_method: ClaimSendMethod | null;
+
+  @ApiProperty({
+    example: '2026-06-28T05:27:41.000Z',
+    description: 'The timestamp when the claim was sent/submitted, or null if not sent yet.',
+    nullable: true,
+  })
+  sent_at: Date | null;
 }
 
 export class StopLogDetailCompletedDto {
