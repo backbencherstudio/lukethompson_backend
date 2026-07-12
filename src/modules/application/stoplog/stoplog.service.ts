@@ -539,7 +539,7 @@ export class StopLogService {
       status = QueryStopLogStatus.ALL,
     } = query;
 
-    const where: any = {
+    const where: Prisma.StopLogWhereInput = {
       user_id,
     };
 
@@ -604,6 +604,12 @@ export class StopLogService {
         },
         arrival_location: true,
         facility_address: true,
+        rating: {
+          select: {
+            id: true,
+            rating: true,
+          },
+        },
       },
     });
 
@@ -634,6 +640,7 @@ export class StopLogService {
           amount: amount.toFixed(2),
           claim_status: item?.claim?.status ?? null,
           status: item?.status,
+          rating: item?.rating,
         };
       }),
       meta_data: {

@@ -104,6 +104,12 @@ export class StopLogListItemDto {
     description: 'Status of the claim associated with the stoplog, if any',
   })
   claim_status?: string | null;
+
+  @ApiProperty({ type: Object, required: false, nullable: true })
+  rating?: {
+    id: string;
+    rating: number;
+  } | null;
 }
 
 export class StopLogListMetaFiltersDto {
@@ -412,7 +418,8 @@ export class StopLogDetailClaimDto {
 
   @ApiProperty({
     example: '2026-06-28T05:27:41.000Z',
-    description: 'The timestamp when the claim was sent/submitted, or null if not sent yet.',
+    description:
+      'The timestamp when the claim was sent/submitted, or null if not sent yet.',
     nullable: true,
   })
   sent_at: Date | null;
