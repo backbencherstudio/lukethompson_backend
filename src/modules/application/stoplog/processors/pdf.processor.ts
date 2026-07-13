@@ -2,7 +2,7 @@ import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { AttachmentType } from 'prisma/generated/client';
+import { AttachmentType } from '../../../../../prisma/generated/client';
 import { NajimStorage } from 'src/common/lib/Disk/NajimStorage';
 import appConfig from 'src/config/app.config';
 import * as puppeteer from 'puppeteer';

@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { StripePayment } from '../../../common/lib/Payment/stripe/StripePayment';
-import { SubscriptionStatus } from 'prisma/generated/client';
+import { SubscriptionStatus } from '../../../../prisma/generated/client';
 
 @Injectable()
 export class SubscriptionSyncCron {

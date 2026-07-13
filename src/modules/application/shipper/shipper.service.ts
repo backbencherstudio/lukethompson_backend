@@ -10,7 +10,7 @@ import {
   QueryShipperStatus,
   SearchShipperDto,
 } from './dto/query-shipper.dto';
-import { ClaimStatus, Prisma } from 'prisma/generated/client';
+import { ClaimStatus, Prisma } from '../../../../prisma/generated/client';
 import { CreateShipperRatingDto } from './dto/create-shipper.dto';
 
 @Injectable()

@@ -11,7 +11,7 @@ import {
   ClaimEventType,
   Prisma,
   AttachmentType,
-} from 'prisma/generated/client';
+} from '../../../../prisma/generated/client';
 import {
   MarkPaidDto,
   MarkDeniedDto,

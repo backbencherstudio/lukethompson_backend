@@ -20,7 +20,7 @@ import {
   ClaimStatus,
   Prisma,
   StopLogStatus as PrismaStopLogStatus,
-} from 'prisma/generated/client';
+} from '../../../../prisma/generated/client';
 import { NajimStorage } from 'src/common/lib/Disk/NajimStorage';
 import appConfig from 'src/config/app.config';
 import { Queue } from 'bullmq';

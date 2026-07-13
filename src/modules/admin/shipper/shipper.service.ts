@@ -3,7 +3,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { NajimStorage } from '../../../common/lib/Disk/NajimStorage';
 import appConfig from '../../../config/app.config';
 import { QueryShipperRatingDto } from './dto/query-shipper.dto';
-import { Prisma } from 'prisma/generated/client';
+import { Prisma } from '../../../../prisma/generated/client';
 
 @Injectable()
 export class ShipperService {

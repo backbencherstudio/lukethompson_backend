@@ -3,7 +3,7 @@ import { StripeService } from './stripe.service';
 import { Request } from 'express';
 import { TransactionRepository } from '../../../common/repository/transaction/transaction.repository';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { SubscriptionStatus } from 'prisma/generated/client';
+import { SubscriptionStatus } from '../../../../prisma/generated/client';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Payment / Stripe')
