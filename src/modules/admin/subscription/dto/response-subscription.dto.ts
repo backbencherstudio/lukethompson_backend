@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class SubscriptionFeatureDataDto {
+export class AdminSubscriptionFeatureDataDto {
   @ApiProperty() id: string;
   @ApiProperty() key: string;
   @ApiProperty() name: string;
@@ -16,7 +16,7 @@ export class SubscriptionFeatureDataDto {
   @ApiProperty({ required: false }) updated_at?: Date;
 }
 
-export class SubscriptionPlanDataDto {
+export class AdminSubscriptionPlanDataDto {
   @ApiProperty() id: string;
   @ApiProperty() name: string;
   @ApiProperty() slug: string;
@@ -32,10 +32,10 @@ export class SubscriptionPlanDataDto {
   @ApiProperty({ nullable: true }) google_product_id: string;
   @ApiProperty() created_at: Date;
   @ApiProperty() updated_at: Date;
-  @ApiProperty({ type: [SubscriptionFeatureDataDto] }) features: SubscriptionFeatureDataDto[];
+  @ApiProperty({ type: [AdminSubscriptionFeatureDataDto] }) features: AdminSubscriptionFeatureDataDto[];
 }
 
-export class UserDataDto {
+export class AdminUserDataDto {
   @ApiProperty() id: string;
   @ApiProperty() email: string;
   @ApiProperty() name: string;
@@ -43,7 +43,7 @@ export class UserDataDto {
   @ApiProperty() type: string;
 }
 
-export class UserSubscriptionPlanDataDto {
+export class UserAdminSubscriptionPlanDataDto {
   @ApiProperty() id: string;
   @ApiProperty() name: string;
   @ApiProperty() slug: string;
@@ -52,7 +52,7 @@ export class UserSubscriptionPlanDataDto {
   @ApiProperty() interval: string;
 }
 
-export class UserSubscriptionDataDto {
+export class AdminUserSubscriptionDataDto {
   @ApiProperty() id: string;
   @ApiProperty() status: string;
   @ApiProperty() started_at: Date;
@@ -62,42 +62,42 @@ export class UserSubscriptionDataDto {
   @ApiProperty({ nullable: true }) purchase_id: string;
   @ApiProperty() created_at: Date;
   @ApiProperty() updated_at: Date;
-  @ApiProperty({ type: UserDataDto }) user: UserDataDto;
-  @ApiProperty({ type: UserSubscriptionPlanDataDto, nullable: true }) plan: UserSubscriptionPlanDataDto;
+  @ApiProperty({ type: AdminUserDataDto }) user: AdminUserDataDto;
+  @ApiProperty({ type: UserAdminSubscriptionPlanDataDto, nullable: true }) plan: UserAdminSubscriptionPlanDataDto;
 }
 
-export class SubscriptionPlanResponseDto {
+export class AdminSubscriptionPlanResponseDto {
   @ApiProperty({ example: true }) success: boolean;
   @ApiProperty({ example: 'Operation completed successfully' }) message?: string;
-  @ApiProperty({ type: SubscriptionPlanDataDto }) data: SubscriptionPlanDataDto;
+  @ApiProperty({ type: AdminSubscriptionPlanDataDto }) data: AdminSubscriptionPlanDataDto;
 }
 
-export class SubscriptionPlanListResponseDto {
+export class AdminSubscriptionPlanListResponseDto {
   @ApiProperty({ example: true }) success: boolean;
   @ApiProperty({ example: 'Operation completed successfully' }) message?: string;
-  @ApiProperty({ type: [SubscriptionPlanDataDto] }) data: SubscriptionPlanDataDto[];
+  @ApiProperty({ type: [AdminSubscriptionPlanDataDto] }) data: AdminSubscriptionPlanDataDto[];
 }
 
-export class SubscriptionFeatureResponseDto {
+export class AdminSubscriptionFeatureResponseDto {
   @ApiProperty({ example: true }) success: boolean;
   @ApiProperty({ example: 'Operation completed successfully' }) message?: string;
-  @ApiProperty({ type: SubscriptionFeatureDataDto }) data: SubscriptionFeatureDataDto;
+  @ApiProperty({ type: AdminSubscriptionFeatureDataDto }) data: AdminSubscriptionFeatureDataDto;
 }
 
-export class SubscriptionFeatureListResponseDto {
+export class AdminSubscriptionFeatureListResponseDto {
   @ApiProperty({ example: true }) success: boolean;
   @ApiProperty({ example: 'Operation completed successfully' }) message?: string;
-  @ApiProperty({ type: [SubscriptionFeatureDataDto] }) data: SubscriptionFeatureDataDto[];
+  @ApiProperty({ type: [AdminSubscriptionFeatureDataDto] }) data: AdminSubscriptionFeatureDataDto[];
 }
 
-export class UserSubscriptionResponseDto {
+export class AdminUserSubscriptionResponseDto {
   @ApiProperty({ example: true }) success: boolean;
   @ApiProperty({ example: 'Operation completed successfully' }) message?: string;
-  @ApiProperty({ type: UserSubscriptionDataDto }) data: UserSubscriptionDataDto;
+  @ApiProperty({ type: AdminUserSubscriptionDataDto }) data: AdminUserSubscriptionDataDto;
 }
 
-export class UserSubscriptionListResponseDto {
+export class AdminUserSubscriptionListResponseDto {
   @ApiProperty({ example: true }) success: boolean;
   @ApiProperty({ example: 'Operation completed successfully' }) message?: string;
-  @ApiProperty({ type: [UserSubscriptionDataDto] }) data: UserSubscriptionDataDto[];
+  @ApiProperty({ type: [AdminUserSubscriptionDataDto] }) data: AdminUserSubscriptionDataDto[];
 }

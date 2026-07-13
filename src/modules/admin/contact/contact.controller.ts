@@ -10,7 +10,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ContactService } from './contact.service';
-import { CreateContactDto } from './dto/create-contact.dto';
+import { AdminCreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import {
   ApiBearerAuth,
@@ -37,7 +37,7 @@ export class ContactController {
     description: 'Contact message submitted successfully.',
   })
   @Post()
-  async create(@Body() createContactDto: CreateContactDto) {
+  async create(@Body() createContactDto: AdminCreateContactDto) {
     try {
       const contact = await this.contactService.create(createContactDto);
       return contact;

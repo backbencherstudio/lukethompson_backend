@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CreateContactDto } from './dto/create-contact.dto';
+import { AdminCreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { DateHelper } from '../../../common/helper/date.helper';
@@ -8,7 +8,7 @@ import { DateHelper } from '../../../common/helper/date.helper';
 export class ContactService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createContactDto: CreateContactDto) {
+  async create(createContactDto: AdminCreateContactDto) {
     try {
       const data = {};
       if (createContactDto.first_name) {
