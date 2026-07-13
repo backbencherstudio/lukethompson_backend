@@ -13,6 +13,7 @@ import {
   CreateCheckoutSessionDto,
   CheckoutSessionResponseDto,
   SubscriptionPlanResponseDto,
+  SubscriptionPlanListResponseDto,
   UserSubscriptionResponseDto,
 } from './dto/subscription.dto';
 
@@ -27,7 +28,7 @@ export class SubscriptionController {
   @ApiResponse({
     status: 200,
     description: 'List of active subscription plans retrieved successfully.',
-    type: SubscriptionPlanResponseDto,
+    type: SubscriptionPlanListResponseDto,
   })
   @Get('plans')
   findAllPlans() {

@@ -29,8 +29,11 @@ import {
 } from './dto/update-subscription.dto';
 import {
   SubscriptionPlanResponseDto,
+  SubscriptionPlanListResponseDto,
   SubscriptionFeatureResponseDto,
+  SubscriptionFeatureListResponseDto,
   UserSubscriptionResponseDto,
+  UserSubscriptionListResponseDto,
 } from './dto/response-subscription.dto';
 
 @ApiBearerAuth('admin_token')
@@ -60,7 +63,7 @@ export class SubscriptionController {
   @ApiResponse({
     status: 200,
     description: 'List of subscription plans retrieved successfully.',
-    type: SubscriptionPlanResponseDto,
+    type: SubscriptionPlanListResponseDto,
   })
   @Get('plans')
   findAllPlans() {
@@ -110,7 +113,7 @@ export class SubscriptionController {
   @ApiResponse({
     status: 200,
     description: 'List of subscription features retrieved successfully.',
-    type: SubscriptionFeatureResponseDto,
+    type: SubscriptionFeatureListResponseDto,
   })
   @Get('features')
   findAllFeatures() {
@@ -147,7 +150,7 @@ export class SubscriptionController {
   @ApiResponse({
     status: 200,
     description: 'List of user subscriptions retrieved successfully.',
-    type: UserSubscriptionResponseDto,
+    type: UserSubscriptionListResponseDto,
   })
   @Get('user-subscriptions')
   findAllUserSubscriptions() {
