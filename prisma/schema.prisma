@@ -297,7 +297,6 @@ model SubscriptionPlan {
   updated_at DateTime @updatedAt
 
   name        String
-  slug        String          @unique
   description String?
   price       Decimal         @db.Decimal(10, 2)
   currency    String          @default("USD")

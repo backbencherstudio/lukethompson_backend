@@ -40,7 +40,6 @@ export class SubscriptionFeatureDataDto {
 export class SubscriptionPlanDataDto {
   @ApiProperty() id: string;
   @ApiProperty() name: string;
-  @ApiProperty() slug: string;
   @ApiProperty({ nullable: true }) description: string;
   @ApiProperty() price: number;
   @ApiProperty() currency: string;
@@ -67,7 +66,6 @@ export class UserDataDto {
 export class UserSubscriptionPlanDataDto {
   @ApiProperty() id: string;
   @ApiProperty() name: string;
-  @ApiProperty() slug: string;
   @ApiProperty() price: number;
   @ApiProperty() currency: string;
   @ApiProperty() interval: string;

@@ -38,9 +38,6 @@ export class CreateSubscriptionPlanDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ example: 'premium-plan' })
-  @IsString()
-  slug: string;
 
   @ApiPropertyOptional({ example: 'Premium access to all features' })
   @IsOptional()

@@ -353,7 +353,6 @@ export class SeedCommand extends CommandRunner {
     // Seed Plans
     const plans = [
       {
-        slug: 'free',
         name: 'Free Plan',
         description: 'Basic access for drivers.',
         price: 0,
@@ -371,7 +370,6 @@ export class SeedCommand extends CommandRunner {
         ],
       },
       {
-        slug: 'pro',
         name: 'Pro Plan',
         description: 'Perfect for active drivers.',
         price: 19.99,
@@ -389,7 +387,6 @@ export class SeedCommand extends CommandRunner {
         ],
       },
       {
-        slug: 'premium',
         name: 'Premium Plan',
         description: 'Unlimited access.',
         price: 49.99,
@@ -411,28 +408,37 @@ export class SeedCommand extends CommandRunner {
     for (const plan of plans) {
       const { features: planFeatures, ...planData } = plan;
 
-      const dbPlan = await this.prisma.subscriptionPlan.upsert({
-        where: { slug: planData.slug },
-        update: {
-          name: planData.name,
-          description: planData.description,
-          price: planData.price,
-          currency: planData.currency,
-          interval: planData.interval,
-          status: planData.status,
-          sort_order: planData.sort_order,
-        },
-        create: {
-          name: planData.name,
-          slug: planData.slug,
-          description: planData.description,
-          price: planData.price,
-          currency: planData.currency,
-          interval: planData.interval,
-          status: planData.status,
-          sort_order: planData.sort_order,
-        },
+      const existingPlan = await this.prisma.subscriptionPlan.findFirst({
+        where: { name: planData.name },
       });
+
+      let dbPlan;
+      if (existingPlan) {
+        dbPlan = await this.prisma.subscriptionPlan.update({
+          where: { id: existingPlan.id },
+          data: {
+            name: planData.name,
+            description: planData.description,
+            price: planData.price,
+            currency: planData.currency,
+            interval: planData.interval,
+            status: planData.status,
+            sort_order: planData.sort_order,
+          },
+        });
+      } else {
+        dbPlan = await this.prisma.subscriptionPlan.create({
+          data: {
+            name: planData.name,
+            description: planData.description,
+            price: planData.price,
+            currency: planData.currency,
+            interval: planData.interval,
+            status: planData.status,
+            sort_order: planData.sort_order,
+          },
+        });
+      }
 
       // Link features to the plan
       for (const pf of planFeatures) {

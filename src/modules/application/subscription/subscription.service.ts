@@ -23,7 +23,6 @@ export class SubscriptionService {
       select: {
         id: true,
         name: true,
-        slug: true,
         description: true,
         price: true,
         currency: true,
@@ -108,7 +107,6 @@ export class SubscriptionService {
           select: {
             id: true,
             name: true,
-            slug: true,
             price: true,
             currency: true,
             interval: true,

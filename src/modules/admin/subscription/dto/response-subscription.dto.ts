@@ -19,7 +19,6 @@ export class AdminSubscriptionFeatureDataDto {
 export class AdminSubscriptionPlanDataDto {
   @ApiProperty() id: string;
   @ApiProperty() name: string;
-  @ApiProperty() slug: string;
   @ApiProperty({ nullable: true }) description: string;
   @ApiProperty() price: number;
   @ApiProperty() currency: string;
@@ -46,7 +45,6 @@ export class AdminUserDataDto {
 export class UserAdminSubscriptionPlanDataDto {
   @ApiProperty() id: string;
   @ApiProperty() name: string;
-  @ApiProperty() slug: string;
   @ApiProperty() price: number;
   @ApiProperty() currency: string;
   @ApiProperty() interval: string;
