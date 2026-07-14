@@ -21,10 +21,12 @@ import { Role } from '../../../common/guard/role/role.enum';
 import { Roles } from '../../../common/guard/role/roles.decorator';
 import {
   CreateSubscriptionPlanDto,
+  CreateSubscriptionFeatureDto,
   CreateUserSubscriptionDto,
 } from './dto/create-subscription.dto';
 import {
   UpdateSubscriptionPlanDto,
+  UpdateSubscriptionFeatureDto,
   UpdateUserSubscriptionDto,
 } from './dto/update-subscription.dto';
 import {
@@ -109,6 +111,17 @@ export class SubscriptionController {
   // FEATURES ENDPOINTS
   // ==========================================
 
+  @ApiOperation({ summary: 'Create a new subscription feature' })
+  @ApiResponse({
+    status: 201,
+    description: 'Subscription feature created successfully.',
+    type: AdminSubscriptionFeatureResponseDto,
+  })
+  @Post('features')
+  createFeature(@Body() dto: CreateSubscriptionFeatureDto) {
+    return this.subscriptionService.createFeature(dto);
+  }
+
   @ApiOperation({ summary: 'Get all subscription features' })
   @ApiResponse({
     status: 200,
@@ -129,6 +142,30 @@ export class SubscriptionController {
   @Get('features/:feature_id')
   findOneFeature(@Param('feature_id') feature_id: string) {
     return this.subscriptionService.findOneFeature(feature_id);
+  }
+
+  @ApiOperation({ summary: 'Update a subscription feature' })
+  @ApiResponse({
+    status: 200,
+    description: 'Subscription feature updated successfully.',
+    type: AdminSubscriptionFeatureResponseDto,
+  })
+  @Patch('features/:feature_id')
+  updateFeature(
+    @Param('feature_id') feature_id: string,
+    @Body() dto: UpdateSubscriptionFeatureDto,
+  ) {
+    return this.subscriptionService.updateFeature(feature_id, dto);
+  }
+
+  @ApiOperation({ summary: 'Delete a subscription feature' })
+  @ApiResponse({
+    status: 200,
+    description: 'Subscription feature deleted successfully.',
+  })
+  @Delete('features/:feature_id')
+  removeFeature(@Param('feature_id') feature_id: string) {
+    return this.subscriptionService.removeFeature(feature_id);
   }
 
   // ==========================================
