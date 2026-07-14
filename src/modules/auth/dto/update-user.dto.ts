@@ -1,5 +1,4 @@
-import { ApiProperty, OmitType, PartialType } from '@nestjs/swagger';
-import { RegisterUserDto } from './create-auth.dto';
+import { ApiProperty } from '@nestjs/swagger';
 import { IsNumber, IsOptional, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
