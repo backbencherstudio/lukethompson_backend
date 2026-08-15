@@ -67,27 +67,39 @@ export class PdfProcessor extends WorkerHost {
     }
 
     try {
+      // -------------------------------------------------------
       // Calculate times and claim amount
+      // -------------------------------------------------------
+
       const arrived = new Date(stoplog.arrived_at).getTime();
       const departed = new Date(stoplog.departed_at).getTime();
+
       const totalTime = Math.max(0, (departed - arrived) / (1000 * 60 * 60));
+
       const payableTime = Math.max(
         0,
         totalTime - (stoplog.user?.free_wait_time || 0),
       );
+
       const totalAmount = payableTime * (stoplog.user?.rate_per_hour || 0);
 
+      // -------------------------------------------------------
       // Formatting helper functions
+      // -------------------------------------------------------
+
       const formatDuration = (hoursDecimal: number): string => {
         const hours = Math.floor(hoursDecimal);
         const minutes = Math.round((hoursDecimal - hours) * 60);
+
         if (hours > 0 && minutes > 0) {
           return `${hours}h ${minutes}m`;
-        } else if (hours > 0) {
-          return `${hours}h`;
-        } else {
-          return `${minutes}m`;
         }
+
+        if (hours > 0) {
+          return `${hours}h`;
+        }
+
+        return `${minutes}m`;
       };
 
       const formatTime = (date: Date): string => {
@@ -98,7 +110,10 @@ export class PdfProcessor extends WorkerHost {
         });
       };
 
-      // Get list of other attachments for Proof Package links
+      // -------------------------------------------------------
+      // Get attachments for Proof Package
+      // -------------------------------------------------------
+
       const otherAttachments = stoplog.attachments
         .filter((att) => att.type !== AttachmentType.DETENTION_SUMMARY)
         .map((att) => ({
@@ -109,32 +124,50 @@ export class PdfProcessor extends WorkerHost {
           }),
         }));
 
+      // -------------------------------------------------------
+      // GPS
+      // -------------------------------------------------------
+
       const gpsStr =
         stoplog.arrival_location?.lat && stoplog.arrival_location?.lng
-          ? `${Number(stoplog.arrival_location.lat).toFixed(4)}, ${Number(stoplog.arrival_location.lng).toFixed(4)}`
+          ? `${Number(stoplog.arrival_location.lat).toFixed(4)}, ${Number(
+              stoplog.arrival_location.lng,
+            ).toFixed(4)}`
           : 'N/A';
+
+      // -------------------------------------------------------
+      // Claim amount formatting
+      // -------------------------------------------------------
 
       const claimAmountFormatted = new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD',
       }).format(Math.round(totalAmount));
 
-      // Resolve templates directory path (supports dev / dist production compilation)
+      // -------------------------------------------------------
+      // Resolve EJS template directory
+      // -------------------------------------------------------
+
       const isProd =
         process.env.NODE_ENV === 'production' ||
         fs.existsSync(path.join(process.cwd(), 'dist'));
+
       const templatesDir = isProd
         ? path.join(process.cwd(), 'dist/mail/templates')
         : path.join(process.cwd(), 'src/mail/templates');
 
       const templatePath = path.join(templatesDir, 'detention-summary.ejs');
+
       if (!fs.existsSync(templatePath)) {
         throw new Error(`EJS Template file not found at: ${templatePath}`);
       }
 
       const templateHtml = fs.readFileSync(templatePath, 'utf-8');
 
-      // Compile/Render EJS template to HTML
+      // -------------------------------------------------------
+      // Render EJS template
+      // -------------------------------------------------------
+
       const html = ejs.render(templateHtml, {
         claimAmount: claimAmountFormatted,
         billableDurationStr: formatDuration(payableTime),
@@ -148,18 +181,64 @@ export class PdfProcessor extends WorkerHost {
         attachments: otherAttachments,
       });
 
-      // Generate PDF buffer using Puppeteer
+      // -------------------------------------------------------
+      // Generate PDF using Puppeteer
+      // -------------------------------------------------------
+
+      this.logger.log('Launching Puppeteer browser...');
+
       const browser = await puppeteer.launch({
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
         headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+        ],
       });
+
       let pdfBuffer: Buffer;
+
       try {
         const page = await browser.newPage();
-        await page.setContent(html, { waitUntil: 'networkidle0' });
+
+        // Set a reasonable viewport for A4 PDF rendering
+        await page.setViewport({
+          width: 1280,
+          height: 720,
+          deviceScaleFactor: 1,
+        });
+
+        // IMPORTANT:
+        // Your installed Puppeteer types don't support
+        // "networkidle0" for page.setContent().
+        await page.setContent(html, {
+          waitUntil: 'load',
+        });
+
+        // Wait for images to finish loading.
+        // This is useful if your EJS template contains
+        // remote/storage images.
+        await page.evaluate(async () => {
+          const images = Array.from(document.images);
+
+          await Promise.all(
+            images.map((image) => {
+              if (image.complete) {
+                return Promise.resolve();
+              }
+
+              return new Promise<void>((resolve) => {
+                image.addEventListener('load', () => resolve());
+                image.addEventListener('error', () => resolve());
+              });
+            }),
+          );
+        });
+
         const rawPdf = await page.pdf({
           format: 'A4',
           printBackground: true,
+          preferCSSPageSize: true,
           margin: {
             top: '20px',
             bottom: '20px',
@@ -167,17 +246,33 @@ export class PdfProcessor extends WorkerHost {
             right: '20px',
           },
         });
+
         pdfBuffer = Buffer.from(rawPdf);
+
+        this.logger.log(
+          `PDF generated successfully. Size: ${pdfBuffer.length} bytes`,
+        );
       } finally {
         await browser.close();
+        this.logger.log('Puppeteer browser closed.');
       }
 
-      // Upload generated PDF file
+      // -------------------------------------------------------
+      // Upload generated PDF
+      // -------------------------------------------------------
+
       const fileName = `detention-summary-${stoplog.id}.pdf`;
+
       const objectKey = `${appConfig().storageUrl.stopLog}/${fileName}`;
+
       await NajimStorage.put(objectKey, pdfBuffer);
 
-      // Perform DB transactions: delete old summary PDF and insert new one
+      this.logger.log(`PDF uploaded successfully: ${objectKey}`);
+
+      // -------------------------------------------------------
+      // Update attachment records
+      // -------------------------------------------------------
+
       await this.prisma.$transaction(async (tx) => {
         const existingSummary = await tx.attachment.findFirst({
           where: {
@@ -186,19 +281,31 @@ export class PdfProcessor extends WorkerHost {
           },
         });
 
+        // Delete old PDF from storage
         if (existingSummary) {
           try {
             await NajimStorage.delete(existingSummary.file_url);
+
+            this.logger.log(
+              `Old detention summary deleted from storage: ${existingSummary.file_url}`,
+            );
           } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+
             this.logger.error(
-              `Failed to delete old summary PDF from storage: ${err.message}`,
+              `Failed to delete old summary PDF from storage: ${message}`,
             );
           }
+
+          // Delete old DB attachment
           await tx.attachment.delete({
-            where: { id: existingSummary.id },
+            where: {
+              id: existingSummary.id,
+            },
           });
         }
 
+        // Create new attachment
         await tx.attachment.create({
           data: {
             type: AttachmentType.DETENTION_SUMMARY,
@@ -215,11 +322,24 @@ export class PdfProcessor extends WorkerHost {
       this.logger.log(
         `Detention summary PDF generated and attached successfully for stoplog: ${stoplog.id}`,
       );
+
+      return {
+        success: true,
+        stopLogId,
+        claimId,
+        fileName,
+        fileUrl: objectKey,
+      };
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      const stack = error instanceof Error ? error.stack : undefined;
+
       this.logger.error(
-        `Error generating summary PDF for stoplog ${stoplog.id}: ${error.message}`,
-        error.stack,
+        `Error generating summary PDF for stoplog ${stoplog.id}: ${message}`,
+        stack,
       );
+
       throw error;
     }
   }

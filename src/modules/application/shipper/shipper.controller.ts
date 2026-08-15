@@ -6,6 +6,8 @@ import {
   UseGuards,
   Param,
   Body,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { ShipperService } from './shipper.service';
 import { QueryShipperDto, SearchShipperDto } from './dto/query-shipper.dto';
@@ -20,11 +22,12 @@ import { RolesGuard } from 'src/common/guard/role/roles.guard';
 import { GetUser } from 'src/modules/auth/decorators/get-user.decorator';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
-import { CreateShipperRatingDto } from './dto/create-shipper.dto';
+import { CreateShipperDto, CreateShipperRatingDto } from './dto/create-shipper.dto';
 
 @ApiTags('Application shipper')
 @ApiBearerAuth('user_token')
@@ -32,6 +35,18 @@ import { CreateShipperRatingDto } from './dto/create-shipper.dto';
 @Controller('shippers')
 export class ShipperController {
   constructor(private readonly shipperService: ShipperService) {}
+
+  @ApiOperation({
+    summary: 'Create a new shipper facility',
+    description:
+      'Creates a new shipper facility with optional location details (address, coordinates). The facility name must be unique.',
+  })
+  @ApiBody({ type: CreateShipperDto })
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  createShipper(@Body() createShipperDto: CreateShipperDto) {
+    return this.shipperService.createShipper(createShipperDto);
+  }
 
   @ApiOperation({
     summary: 'Get all shippers and facilities with ratings',

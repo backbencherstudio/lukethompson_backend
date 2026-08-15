@@ -10,7 +10,7 @@ import { MailProcessor } from './processors/mail.processor';
 @Module({
   imports: [
     MailerModule.forRoot({
-      // transport: 'smtps://user@example.com:topsecret@smtp.example.com',
+      // transport: 'smtps://admin@example.com:topsecret@smtp.example.com',
       // or
       transport: {
         host: appConfig().mail.host,
