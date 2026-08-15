@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { ResponseHelper } from 'src/common/helper/response.helper';
@@ -11,7 +12,7 @@ import {
   SearchShipperDto,
 } from './dto/query-shipper.dto';
 import { ClaimStatus, Prisma } from '../../../../prisma/generated/client';
-import { CreateShipperRatingDto } from './dto/create-shipper.dto';
+import { CreateShipperDto, CreateShipperRatingDto } from './dto/create-shipper.dto';
 
 @Injectable()
 export class ShipperService {
@@ -25,6 +26,69 @@ export class ShipperService {
     } catch (err) {
       console.error('Failed to ensure pg_trgm extension:', err);
     }
+  }
+
+  async createShipper(dto: CreateShipperDto) {
+    const { name, address, city, state, zip, country, lat, lng } = dto;
+
+    // Check if facility with same normalized name already exists
+    const normalizedName = name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]/g, '_');
+
+    const existingFacility = await this.prisma.shipperFacility.findUnique({
+      where: { normalized_name: normalizedName },
+    });
+
+    if (existingFacility) {
+      throw new ConflictException(
+        `A facility with name "${name}" already exists`,
+      );
+    }
+
+    // Create location if address or coordinates are provided
+    let locationId: string | undefined;
+
+    if (
+      address ||
+      city ||
+      state ||
+      zip ||
+      country ||
+      lat !== undefined ||
+      lng !== undefined
+    ) {
+      const location = await this.prisma.location.create({
+        data: {
+          address: address || null,
+          city: city || null,
+          state: state || null,
+          zip: zip || null,
+          country: country || 'USA',
+          lat: lat !== undefined ? lat : null,
+          lng: lng !== undefined ? lng : null,
+        },
+      });
+      locationId = location.id;
+    }
+
+    // Create shipper facility
+    const shipper = await this.prisma.shipperFacility.create({
+      data: {
+        name: name.trim(),
+        normalized_name: normalizedName,
+        location_id: locationId || null,
+      },
+      include: {
+        location: true,
+      },
+    });
+
+    return ResponseHelper.success({
+      message: 'Shipper facility created successfully',
+      data: shipper,
+    });
   }
 
   async getAllShippers(query: QueryShipperDto) {
@@ -363,6 +427,8 @@ export class ShipperService {
             address: true,
             city: true,
             state: true,
+            lat: true,
+            lng: true,
             zip: true,
           },
         },
@@ -382,29 +448,36 @@ export class ShipperService {
     const mapped = (facilities || [])
       .map((f) => {
         if (!f) return null;
+
         let addressStr = f.location?.address || '';
+
         if (!addressStr && f.location) {
           const parts = [
             f.location.city,
             f.location.state,
             f.location.zip,
           ].filter(Boolean);
+
           addressStr = parts.join(', ');
         }
 
         const claims = f.claims || [];
         const ratings = f.ratings || [];
+
         const claims_count = claims.length;
+
         const paid_claims_count = claims.filter(
           (c) => c.status === ClaimStatus.PAID,
         ).length;
 
         let rating = 0;
+
         if (ratings.length > 0) {
           const sumRating = ratings.reduce(
             (sum, r) => sum + Number(r.rating),
             0,
           );
+
           rating = Math.round(sumRating / ratings.length);
         } else {
           rating =
@@ -417,15 +490,12 @@ export class ShipperService {
           id: f.id,
           name: f.name,
           address: addressStr || null,
+          lat: f.location?.lat ?? null,
+          lng: f.location?.lng ?? null,
           rating,
         };
       })
       .filter(Boolean);
-
-    // Sort by SQL query ranking order if search is provided
-    if (search) {
-      mapped.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
-    }
 
     // Apply cursor pagination in memory
     let startIndex = 0;

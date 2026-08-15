@@ -24,7 +24,7 @@ export class RegisterUserDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'user@example.com',
+    example: 'admin@example.com',
   })
   @IsEmail()
   @IsNotEmpty()
@@ -77,7 +77,7 @@ export class LoginDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'user@example.com',
+    example: 'admin@example.com',
   })
   @IsEmail()
   @IsNotEmpty()
@@ -97,7 +97,7 @@ export class ForgotPasswordDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'user@example.com',
+    example: 'admin@example.com',
   })
   @IsEmail()
   @IsNotEmpty()
@@ -108,7 +108,7 @@ export class ResetPasswordDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'user@example.com',
+    example: 'admin@example.com',
   })
   @IsEmail()
   @IsNotEmpty()
@@ -157,7 +157,7 @@ export class ResendVerificationEmailDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'user@example.com',
+    example: 'admin@example.com',
   })
   @IsEmail()
   @IsNotEmpty()
@@ -168,7 +168,7 @@ export class VerifyEmailDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'user@example.com',
+    example: 'admin@example.com',
   })
   @IsEmail()
   @IsNotEmpty()
@@ -188,7 +188,7 @@ export class EmailChangeRequestDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'user@example.com',
+    example: 'admin@example.com',
   })
   @IsEmail()
   @IsNotEmpty()
@@ -199,7 +199,7 @@ export class ChangeEmailAddressDto {
   @ApiProperty({
     type: String,
     description: 'Email address',
-    example: 'user@example.com',
+    example: 'admin@example.com',
   })
   @IsEmail()
   @IsNotEmpty()
