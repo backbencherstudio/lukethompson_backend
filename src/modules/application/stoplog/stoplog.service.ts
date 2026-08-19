@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { LogStopStep, PutStopLogDto } from './dto/create-stoplog.dto';
@@ -25,6 +26,7 @@ import { NajimStorage } from 'src/common/lib/Disk/NajimStorage';
 import appConfig from 'src/config/app.config';
 import { Queue } from 'bullmq';
 import { InjectQueue } from '@nestjs/bullmq';
+import { UpdateStopLogDto } from './dto/update-stoplog.dto';
 
 type StepState = Pick<
   Prisma.StopLogUncheckedCreateInput,
@@ -355,21 +357,14 @@ export class StopLogService {
                   }
 
                   const facilityName = dto.facility_name.trim();
-                  const normalizedName = [
-                    facilityName,
-                    dto.location.address,
-                    dto.location.city,
-                    dto.location.state,
-                    dto.location.country,
-                    dto.location.zip,
-                  ]
-                    .map(
-                      (value) =>
-                        value?.trim().toLowerCase().replace(/\s+/g, ' ') ?? '',
-                    )
-                    .filter(Boolean)
-                    .join('|');
 
+                  // FIX: Use the same normalization logic as createShipper
+                  const normalizedName = facilityName
+                    .toLowerCase()
+                    .trim()
+                    .replace(/[^a-z0-9]/g, '_');
+
+                  // First, try to find existing facility by normalized name only (like createShipper does)
                   const existingSF = await tx.shipperFacility.findUnique({
                     where: { normalized_name: normalizedName },
                     select: { id: true, name: true },
@@ -379,11 +374,14 @@ export class StopLogService {
                     shipperFacilityId = existingSF.id;
                     shipperFacilityName = existingSF.name;
                   } else {
+                    // If no existing facility found, create a new one
+                    // Note: We're using facilityAddressId which might be undefined
+                    // This matches the createShipper behavior
                     const newSF = await tx.shipperFacility.create({
                       data: {
                         name: facilityName,
                         normalized_name: normalizedName,
-                        location_id: facilityAddressId,
+                        location_id: facilityAddressId || null,
                       },
                       select: { id: true, name: true },
                     });
@@ -779,6 +777,9 @@ export class StopLogService {
         facility_name: stoplog.facility_name,
         arrived_at: stoplog.arrived_at,
         departed_at: stoplog.departed_at,
+        docked_at: stoplog.docked_at,
+        completed_at: stoplog.completed_at,
+        current_step: currentStep,
         bol_number: stoplog.bol_number,
         gps_coordinates,
         rate_per_hour: stoplog.user?.rate_per_hour + '',
@@ -809,6 +810,391 @@ export class StopLogService {
           : null,
       },
     });
+  }
+
+  async updateStopLog(
+    id: string,
+    user_id: string,
+    dto: UpdateStopLogDto,
+    files: Express.Multer.File[] = [],
+  ) {
+    const { step, bol_number } = dto;
+
+    const config = this.STEP_CONFIG[step];
+
+    if (!config) {
+      throw new BadRequestException('Invalid stop log step');
+    }
+
+    // ---------------------------------------------------------
+    // 1. Find the stop log and verify ownership
+    // ---------------------------------------------------------
+    const stopLog = await this.prisma.stopLog.findFirst({
+      where: {
+        id,
+        user_id,
+      },
+      select: {
+        id: true,
+        user_id: true,
+        shipper_facility_id: true,
+        shipper_name: true,
+        facility_name: true,
+        bol_number: true,
+        status: true,
+        arrived_at: true,
+        docked_at: true,
+        completed_at: true,
+        departed_at: true,
+
+        arrival_location: true,
+        facility_address: true,
+
+        _count: {
+          select: {
+            attachments: true,
+          },
+        },
+      },
+    });
+
+    if (!stopLog) {
+      throw new NotFoundException('Stop log not found');
+    }
+
+    // ---------------------------------------------------------
+    // 2. Completed stop log cannot be modified
+    // ---------------------------------------------------------
+    if (stopLog.status === PrismaStopLogStatus.COMPLETED) {
+      throw new BadRequestException('Completed stop log cannot be updated');
+    }
+
+    // ---------------------------------------------------------
+    // 3. Step order
+    // ---------------------------------------------------------
+    const STEP_ORDER = {
+      [LogStopStep.ARRIVAL_TIME]: 1,
+      [LogStopStep.DOCK_IN_TIME]: 2,
+      [LogStopStep.COMPLETED_TIME]: 3,
+      [LogStopStep.DEPARTURE_TIME]: 4,
+      [LogStopStep.UPLOAD_DOCUMENTS]: 5,
+    };
+
+    const currentStep = this.getCurrentStep(stopLog);
+
+    // ---------------------------------------------------------
+    // 4. Validate step sequence
+    // ---------------------------------------------------------
+
+    // Arrival cannot be updated again
+    if (step === LogStopStep.ARRIVAL_TIME && stopLog.arrived_at) {
+      throw new BadRequestException('Arrival time has already been recorded');
+    }
+
+    const requestedOrder = STEP_ORDER[step];
+    const currentOrder = STEP_ORDER[currentStep];
+
+    // Upload documents is allowed after departure/completion
+    if (step !== LogStopStep.UPLOAD_DOCUMENTS) {
+      // Cannot go backwards
+      if (requestedOrder < currentOrder) {
+        throw new BadRequestException(
+          `Cannot go back to an earlier step (${currentStep}) from ${step}`,
+        );
+      }
+
+      // Cannot skip a step
+      if (requestedOrder > currentOrder + 1) {
+        const expectedStep = Object.keys(STEP_ORDER).find(
+          (key) => STEP_ORDER[key] === currentOrder + 1,
+        );
+
+        throw new BadRequestException(
+          `Invalid sequence. Next step should be: ${expectedStep}`,
+        );
+      }
+
+      // Prevent duplicate step
+      if (requestedOrder === currentOrder) {
+        throw new BadRequestException(
+          `Step ${step} has already been completed and cannot be recorded again`,
+        );
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 5. Attachments
+    // ---------------------------------------------------------
+    const hasNewAttachments = files.length > 0;
+
+    /*
+     * Same rule as putStopLog():
+     * BOL and attachments are only allowed during
+     * upload_documents.
+     */
+    if (step !== LogStopStep.UPLOAD_DOCUMENTS) {
+      if (hasNewAttachments || bol_number !== undefined) {
+        throw new BadRequestException(
+          'BOL number and attachments can only be provided during the upload_documents step',
+        );
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 6. Upload files before DB transaction
+    // ---------------------------------------------------------
+    const uploadedAttachments: Prisma.AttachmentCreateInput[] = [];
+
+    try {
+      for (const file of files) {
+        const fileName = NajimStorage.generateFilename(file.originalname);
+
+        const objectKey = `${appConfig().storageUrl.stopLog}/${fileName}`;
+
+        await NajimStorage.put(objectKey, file.buffer);
+
+        uploadedAttachments.push({
+          type: AttachmentType.OTHER,
+          file_name: fileName,
+          file_url: objectKey,
+          mime_type: file.mimetype,
+          size_bytes: file.size,
+        });
+      }
+
+      // ---------------------------------------------------------
+      // 7. Transaction
+      // ---------------------------------------------------------
+      return await this.prisma.$transaction(async (tx) => {
+        const now = new Date();
+
+        // Get user for claim calculation
+        const user = await tx.user.findUnique({
+          where: {
+            id: user_id,
+          },
+          select: {
+            id: true,
+            rate_per_hour: true,
+            free_wait_time: true,
+          },
+        });
+
+        if (!user) {
+          throw new UnauthorizedException('User not found');
+        }
+
+        // -------------------------------------------------------
+        // 8. Build update data
+        // -------------------------------------------------------
+        const updateData: Prisma.StopLogUpdateInput = {};
+
+        // Timestamp for the requested step
+        if (config.field) {
+          updateData[config.field] = now;
+        }
+
+        // -------------------------------------------------------
+        // 9. Location update
+        // -------------------------------------------------------
+        if (dto.location) {
+          const hasLocation = Boolean(
+            dto.location.address ||
+              dto.location.city ||
+              dto.location.state ||
+              dto.location.country ||
+              dto.location.zip ||
+              dto.location.lat !== undefined ||
+              dto.location.lng !== undefined,
+          );
+
+          if (hasLocation) {
+            const location = await tx.location.create({
+              data: dto.location,
+              select: {
+                id: true,
+              },
+            });
+
+            /*
+             * Arrival location should be used for arrival step.
+             * For later updates we update facility_address.
+             */
+            if (step === LogStopStep.ARRIVAL_TIME) {
+              updateData.arrival_location = {
+                connect: {
+                  id: location.id,
+                },
+              };
+            } else {
+              updateData.facility_address = {
+                connect: {
+                  id: location.id,
+                },
+              };
+            }
+          }
+        }
+
+        // -------------------------------------------------------
+        // 10. BOL number
+        // -------------------------------------------------------
+        if (bol_number !== undefined) {
+          updateData.bol_number = bol_number.trim() || null;
+        }
+
+        // -------------------------------------------------------
+        // 11. Upload documents
+        // -------------------------------------------------------
+        if (uploadedAttachments.length > 0) {
+          updateData.attachments = {
+            create: uploadedAttachments,
+          };
+        }
+
+        // -------------------------------------------------------
+        // 12. Determine status
+        // -------------------------------------------------------
+
+        /*
+         * Departure means the stop is completed.
+         *
+         * Upload documents can also complete the stop if
+         * departure has already been recorded.
+         */
+        let newStatus = stopLog.status;
+
+        if (step === LogStopStep.DEPARTURE_TIME) {
+          newStatus = PrismaStopLogStatus.COMPLETED;
+        }
+
+        if (step === LogStopStep.UPLOAD_DOCUMENTS && stopLog.departed_at) {
+          newStatus = PrismaStopLogStatus.COMPLETED;
+        }
+
+        updateData.status = newStatus;
+
+        // -------------------------------------------------------
+        // 13. Update stop log
+        // -------------------------------------------------------
+        const updatedStopLog = await tx.stopLog.update({
+          where: {
+            id,
+          },
+          data: updateData,
+          select: {
+            id: true,
+            user_id: true,
+            shipper_facility_id: true,
+            shipper_name: true,
+            facility_name: true,
+            bol_number: true,
+            status: true,
+            arrived_at: true,
+            docked_at: true,
+            completed_at: true,
+            departed_at: true,
+
+            arrival_location: true,
+            facility_address: true,
+
+            attachments: {
+              select: {
+                id: true,
+                type: true,
+                file_name: true,
+                file_url: true,
+                mime_type: true,
+                size_bytes: true,
+                created_at: true,
+              },
+            },
+          },
+        });
+
+        // -------------------------------------------------------
+        // 14. Calculate claim when stop is completed
+        // -------------------------------------------------------
+        const hasAttachments = updatedStopLog.attachments.length > 0;
+
+        if (
+          updatedStopLog.status === PrismaStopLogStatus.COMPLETED &&
+          hasAttachments &&
+          updatedStopLog.departed_at &&
+          updatedStopLog.user_id &&
+          updatedStopLog.shipper_facility_id
+        ) {
+          const arrived = new Date(updatedStopLog.arrived_at).getTime();
+
+          const departed = new Date(updatedStopLog.departed_at).getTime();
+
+          const totalTime = Math.max(
+            0,
+            (departed - arrived) / (1000 * 60 * 60),
+          );
+
+          const payableTime = Math.max(
+            0,
+            totalTime - (user.free_wait_time || 0),
+          );
+
+          const totalAmount = payableTime * (user.rate_per_hour || 0);
+
+          const claim = await tx.claim.upsert({
+            where: {
+              stop_log_id: updatedStopLog.id,
+            },
+            create: {
+              status: ClaimStatus.DRAFT,
+              claim_amount: Math.round(totalAmount),
+              user_id: updatedStopLog.user_id,
+              shipper_facility_id: updatedStopLog.shipper_facility_id,
+              stop_log_id: updatedStopLog.id,
+            },
+            update: {
+              claim_amount: Math.round(totalAmount),
+            },
+          });
+
+          // -----------------------------------------------------
+          // 15. Generate detention summary PDF
+          // -----------------------------------------------------
+          try {
+            await this.pdfQueue.add('generateDetentionSummary', {
+              stopLogId: updatedStopLog.id,
+              claimId: claim.id,
+            });
+          } catch (queueError) {
+            console.error('Failed to enqueue PDF generation job:', queueError);
+          }
+        }
+
+        // -------------------------------------------------------
+        // 16. Response
+        // -------------------------------------------------------
+        return ResponseHelper.success({
+          message: 'Stop log updated successfully',
+          data: {
+            ...updatedStopLog,
+            shipper_id: updatedStopLog.shipper_facility_id,
+            current_step: this.getCurrentStep(updatedStopLog),
+          },
+        });
+      });
+    } catch (error) {
+      // ---------------------------------------------------------
+      // 17. Delete uploaded files if DB operation fails
+      // ---------------------------------------------------------
+      for (const attachment of uploadedAttachments) {
+        try {
+          await NajimStorage.delete(attachment.file_url);
+        } catch (deleteError) {
+          console.error('Error deleting uploaded attachment:', deleteError);
+        }
+      }
+
+      throw error;
+    }
   }
 
   async getHomeData(user_id: string, query: QueryHomeDataDto) {
