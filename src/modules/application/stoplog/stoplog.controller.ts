@@ -7,6 +7,7 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFiles,
+  Patch,
 } from '@nestjs/common';
 import { StopLogService } from './stoplog.service';
 import { PutStopLogDto } from './dto/create-stoplog.dto';
@@ -18,6 +19,7 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -37,6 +39,7 @@ import {
   StopLogDetailResponseDto,
   StopLogActiveResponseDto,
 } from './dto/response-stoplog.dto';
+import { UpdateStopLogDto } from './dto/update-stoplog.dto';
 
 @ApiTags('Application stoplog')
 @ApiBearerAuth('user_token')
@@ -157,5 +160,82 @@ export class StopLogController {
   @Get(':id')
   getOneStopLog(@Param('id') id: string, @GetUser('id') user_id: string) {
     return this.StopLogService.getOneStopLog(id, user_id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({
+    summary: 'Update a stop log',
+    description:
+      'Updates a stop log based on the selected step. Supports arrival, dock-in, completed, departure, and document upload steps.',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Stop log ID',
+    example: 'cl0a1b2c3d4e5f6g7h8i9j0k',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        step: {
+          type: 'string',
+          enum: [
+            'arrival_time',
+            'dock_in_time',
+            'completed_time',
+            'departure_time',
+            'upload_documents',
+          ],
+          example: 'dock_in_time',
+        },
+        shipper_id: {
+          type: 'string',
+          example: 'cmabc123shipper',
+        },
+        facility_name: {
+          type: 'string',
+          example: 'Acme Warehouse',
+        },
+        bol_number: {
+          type: 'string',
+          example: 'BOL-123456789',
+        },
+        location: {
+          type: 'string',
+          example: JSON.stringify({
+            city: 'New York',
+            state: 'NY',
+            country: 'US',
+            address: '123 Warehouse Street',
+            zip: '10001',
+            lat: 40.7128,
+            lng: -74.006,
+          }),
+          description: 'JSON string containing location information',
+        },
+        attachments: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+        },
+      },
+      required: ['step'],
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Stop log updated successfully',
+    type: StopLogDetailResponseDto,
+  })
+  async updateStopLog(
+    @Param('id') id: string,
+    @GetUser('id') user_id: string,
+    @Body() dto: UpdateStopLogDto,
+    @UploadedFiles() attachments: Express.Multer.File[],
+  ) {
+    return this.StopLogService.updateStopLog(id, user_id, dto, attachments);
   }
 }

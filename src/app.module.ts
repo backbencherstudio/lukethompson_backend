@@ -23,6 +23,7 @@ import { PaymentModule } from './modules/payment/payment.module';
 import { PrometheusModule } from './prometheus/prometheus.module';
 import { RepositoryModule } from './common/repository/repository.module';
 import { NotificationModule } from './modules/notification/notification.module';
+import { RevenueCatModule } from './common/webhook/revenuecat/revenuecat.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { NotificationModule } from './modules/notification/notification.module';
     AdminModule,
     PaymentModule,
     PrometheusModule,
+    RevenueCatModule,
   ],
   controllers: [AppController],
   providers: [
