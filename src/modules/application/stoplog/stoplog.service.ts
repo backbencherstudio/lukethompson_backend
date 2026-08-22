@@ -580,7 +580,6 @@ export class StopLogService {
           }
         : undefined,
       orderBy: { created_at: 'desc' },
-
       select: {
         id: true,
         created_at: true,
@@ -602,6 +601,24 @@ export class StopLogService {
         },
         arrival_location: true,
         facility_address: true,
+
+        // Snapshot fields (fallback)
+        broker_name: true,
+        broker_email: true,
+
+        // Related shipper facility with broker
+        shipper_facility: {
+          select: {
+            broker: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+
         rating: {
           select: {
             id: true,
@@ -630,6 +647,21 @@ export class StopLogService {
         );
         const amount = billableHours * (item.user?.rate_per_hour || 0);
 
+        // Get broker from related shipper_facility or fallback to snapshot fields
+        const broker = item.shipper_facility?.broker
+          ? {
+              id: item.shipper_facility.broker.id,
+              name: item.shipper_facility.broker.name,
+              email: item.shipper_facility.broker.email,
+            }
+          : item.broker_name || item.broker_email
+            ? {
+                id: null,
+                name: item.broker_name,
+                email: item.broker_email,
+              }
+            : null;
+
         return {
           id: item.id,
           facility_name: item.facility_name,
@@ -639,6 +671,7 @@ export class StopLogService {
           claim_status: item?.claim?.status ?? null,
           status: item?.status,
           rating: item?.rating,
+          broker: broker,
         };
       }),
       meta_data: {
@@ -675,8 +708,14 @@ export class StopLogService {
           },
         },
         claim: true,
+        shipper_facility: {
+          include: {
+            broker: true,
+          },
+        },
       },
     });
+
     if (!stoplog) throw new UnauthorizedException('Stop log not found');
 
     const currentStep = this.getCurrentStep(stoplog);
@@ -712,6 +751,15 @@ export class StopLogService {
       }
     }
 
+    // Get broker information from related shipper_facility
+    const broker = stoplog.shipper_facility?.broker
+      ? {
+          id: stoplog.shipper_facility.broker.id,
+          name: stoplog.shipper_facility.broker.name,
+          email: stoplog.shipper_facility.broker.email,
+        }
+      : null;
+
     if (stoplog.status !== PrismaStopLogStatus.COMPLETED) {
       return ResponseHelper.success({
         message: 'Stop log fetched successfully',
@@ -733,6 +781,21 @@ export class StopLogService {
           detention_summary_pdf,
           attachments,
           current_step: currentStep,
+          broker: broker,
+          claim: stoplog?.claim
+            ? {
+                id: stoplog.claim.id,
+                status: stoplog.claim.status,
+                amount: stoplog.claim.claim_amount,
+                level: stoplog.claim.recourse_level,
+                level_name:
+                  RECOURSE_LEVELS[stoplog.claim.recourse_level]?.name ||
+                  'Unknown Stage',
+                followup_count: stoplog.claim.followup_count,
+                send_method: stoplog.claim.send_method,
+                sent_at: stoplog.claim.sent_at,
+              }
+            : null,
         },
       });
     }
@@ -792,8 +855,7 @@ export class StopLogService {
         lost: totalAmount.toFixed(2),
         detention_summary_pdf,
         attachments,
-        broker_email: stoplog.broker_email,
-        recipient_email: stoplog?.claim?.recipient_email,
+        broker: broker,
         claim: stoplog?.claim
           ? {
               id: stoplog.claim.id,

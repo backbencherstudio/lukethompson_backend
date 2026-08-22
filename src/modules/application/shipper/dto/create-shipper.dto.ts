@@ -8,9 +8,8 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  IsEmail,
 } from 'class-validator';
-
-
 
 export class CreateShipperDto {
   @ApiProperty({
@@ -92,11 +91,49 @@ export class CreateShipperDto {
   @IsOptional()
   @IsLongitude({ message: 'Invalid longitude value' })
   lng?: number;
+
+  // ===== BROKER FIELDS =====
+  @ApiPropertyOptional({
+    description: 'ID of an existing broker to associate with this shipper',
+    example: 'broker_123',
+  })
+  @IsOptional()
+  @IsString({ message: 'Broker ID must be a string' })
+  brokerId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Name of the broker to create (if not using existing broker)',
+    example: 'ABC Logistics Broker',
+  })
+  @IsOptional()
+  @IsString({ message: 'Broker name must be a string' })
+  @MaxLength(255, { message: 'Broker name cannot exceed 255 characters' })
+  brokerName?: string;
+
+  @ApiPropertyOptional({
+    description: 'Email of the broker (required if creating a new broker)',
+    example: 'broker@abclogistics.com',
+  })
+  @IsOptional()
+  @IsEmail({}, { message: 'Invalid email format' })
+  @MaxLength(255, { message: 'Email cannot exceed 255 characters' })
+  brokerEmail?: string;
 }
+
 export class CreateShipperRatingDto {
-  @ApiProperty({ example: 85, description: 'Rating score (0 to 100)' })
+  @ApiProperty({ example: 85, description: 'Shipper rating score (0 to 100)' })
   @IsNumber()
   @Min(0)
   @Max(100)
   rate: number;
+
+  @ApiPropertyOptional({
+    example: 90,
+    description: 'Broker rating score (0 to 100) - optional',
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  brokerRate?: number;
 }

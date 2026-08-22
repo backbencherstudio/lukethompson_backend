@@ -9,6 +9,7 @@ import { ResponseHelper } from 'src/common/helper/response.helper';
 import {
   QueryShipperDto,
   QueryShipperStatus,
+  QueryType,
   SearchShipperDto,
 } from './dto/query-shipper.dto';
 import { ClaimStatus, Prisma } from '../../../../prisma/generated/client';
@@ -29,96 +30,175 @@ export class ShipperService {
   }
 
   async createShipper(dto: CreateShipperDto) {
-    const { name, address, city, state, zip, country, lat, lng } = dto;
+    const {
+      name,
+      address,
+      city,
+      state,
+      zip,
+      country,
+      lat,
+      lng,
+      brokerId,
+      brokerName,
+      brokerEmail,
+    } = dto;
 
-    // Check if facility with same normalized name already exists
+    // --- 1. Validate broker input ---
+    if (!brokerId && brokerName && !brokerEmail) {
+      throw new BadRequestException(
+        'Broker email is required when creating a new broker',
+      );
+    }
+
+    // --- 2. Check shipper uniqueness ---
     const normalizedName = name
       .toLowerCase()
       .trim()
       .replace(/[^a-z0-9]/g, '_');
 
-    const existingFacility = await this.prisma.shipperFacility.findUnique({
-      where: { normalized_name: normalizedName },
-    });
+    // --- 3. Use transaction to ensure all operations succeed or rollback ---
+    return await this.prisma.$transaction(async (tx) => {
+      // Check if facility already exists
+      const existingFacility = await tx.shipperFacility.findUnique({
+        where: { normalized_name: normalizedName },
+      });
 
-    if (existingFacility) {
-      throw new ConflictException(
-        `A facility with name "${name}" already exists`,
-      );
-    }
+      if (existingFacility) {
+        throw new ConflictException(
+          `A facility with name "${name}" already exists`,
+        );
+      }
 
-    // Create location if address or coordinates are provided
-    let locationId: string | undefined;
+      // --- 4. Create location (if provided) ---
+      let locationId: string | undefined;
 
-    if (
-      address ||
-      city ||
-      state ||
-      zip ||
-      country ||
-      lat !== undefined ||
-      lng !== undefined
-    ) {
-      const location = await this.prisma.location.create({
+      if (
+        address ||
+        city ||
+        state ||
+        zip ||
+        country ||
+        lat !== undefined ||
+        lng !== undefined
+      ) {
+        const location = await tx.location.create({
+          data: {
+            address: address || null,
+            city: city || null,
+            state: state || null,
+            zip: zip || null,
+            country: country || 'USA',
+            lat: lat !== undefined ? lat : null,
+            lng: lng !== undefined ? lng : null,
+          },
+        });
+        locationId = location.id;
+      }
+
+      // --- 5. Handle broker ---
+      let finalBrokerId: string | null = null;
+
+      if (brokerId) {
+        // Use existing broker
+        const existingBroker = await tx.broker.findUnique({
+          where: { id: brokerId },
+        });
+
+        if (!existingBroker) {
+          throw new NotFoundException(`Broker with ID "${brokerId}" not found`);
+        }
+
+        finalBrokerId = brokerId;
+      } else if (brokerName && brokerEmail) {
+        // Create new broker
+        // Check if broker with same email or name already exists
+        const existingBroker = await tx.broker.findFirst({
+          where: {
+            OR: [{ email: brokerEmail }, { name: brokerName.trim() }],
+          },
+        });
+
+        if (existingBroker) {
+          throw new ConflictException(
+            `A broker with name "${brokerName}" or email "${brokerEmail}" already exists`,
+          );
+        }
+
+        const newBroker = await tx.broker.create({
+          data: {
+            name: brokerName.trim(),
+            email: brokerEmail.trim(),
+          },
+        });
+
+        finalBrokerId = newBroker.id;
+      }
+      // If neither brokerId nor brokerName+email, finalBrokerId remains null
+
+      // --- 6. Create shipper facility ---
+      const shipper = await tx.shipperFacility.create({
         data: {
-          address: address || null,
-          city: city || null,
-          state: state || null,
-          zip: zip || null,
-          country: country || 'USA',
-          lat: lat !== undefined ? lat : null,
-          lng: lng !== undefined ? lng : null,
+          name: name.trim(),
+          normalized_name: normalizedName,
+          location_id: locationId || null,
+          broker_id: finalBrokerId,
+        },
+        include: {
+          location: true,
+          broker: true,
         },
       });
-      locationId = location.id;
-    }
 
-    // Create shipper facility
-    const shipper = await this.prisma.shipperFacility.create({
-      data: {
-        name: name.trim(),
-        normalized_name: normalizedName,
-        location_id: locationId || null,
-      },
-      include: {
-        location: true,
-      },
-    });
-
-    return ResponseHelper.success({
-      message: 'Shipper facility created successfully',
-      data: shipper,
+      return ResponseHelper.success({
+        message: 'Shipper facility created successfully',
+        data: shipper,
+      });
     });
   }
 
   async getAllShippers(query: QueryShipperDto) {
     const {
+      type = QueryType.SHIPPER,
       cursor,
       limit = 10,
       search,
       status = QueryShipperStatus.ALL,
     } = query;
 
+    // --- Handle BROKER type - fetch directly from broker table ---
+    if (type === QueryType.BROKER) {
+      return await this.getAllBrokers({ cursor, limit, search });
+    }
+
+    // --- Handle SHIPPER type (default) - fetch from shipper_facilities table ---
     const where: Prisma.ShipperFacilityWhereInput = {};
     let matchedIds: { id: string }[] = [];
 
     if (search) {
       await this.ensurePgTrgm();
       matchedIds = await this.prisma.$queryRaw`
-        SELECT sf.id
-        FROM shipper_facilities sf
-        LEFT JOIN locations l ON sf.location_id = l.id
-        WHERE sf.name ILIKE ${'%' + search + '%'}
-           OR coalesce(l.address, '') ILIKE ${'%' + search + '%'}
-           OR similarity(sf.name, ${search}) > 0.15
-           OR similarity(coalesce(l.address, ''), ${search}) > 0.15
-        ORDER BY greatest(similarity(sf.name, ${search}), similarity(coalesce(l.address, ''), ${search})) DESC
-      `;
+      SELECT sf.id
+      FROM shipper_facilities sf
+      LEFT JOIN locations l ON sf.location_id = l.id
+      LEFT JOIN brokers b ON sf.broker_id = b.id
+      WHERE sf.name ILIKE ${'%' + search + '%'}
+         OR coalesce(l.address, '') ILIKE ${'%' + search + '%'}
+         OR b.name ILIKE ${'%' + search + '%'}
+         OR similarity(sf.name, ${search}) > 0.15
+         OR similarity(coalesce(l.address, ''), ${search}) > 0.15
+         OR similarity(b.name, ${search}) > 0.15
+      ORDER BY greatest(
+        similarity(sf.name, ${search}), 
+        similarity(coalesce(l.address, ''), ${search}),
+        similarity(b.name, ${search})
+      ) DESC
+    `;
       const ids = (matchedIds || []).map((m) => m?.id).filter(Boolean);
       where.id = { in: ids };
     }
 
-    // Fetch all shippers matching the name filter, along with their claims and ratings
+    // Fetch all shippers matching the filter, along with their claims, ratings, and broker
     const shippers = await this.prisma.shipperFacility.findMany({
       where,
       orderBy: { created_at: 'desc' },
@@ -138,13 +218,31 @@ export class ShipperService {
             rating: true,
           },
         },
+        broker: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            created_at: true,
+            updated_at: true,
+          },
+        },
+        location: {
+          select: {
+            address: true,
+            city: true,
+            state: true,
+            zip: true,
+            country: true,
+          },
+        },
       },
     });
 
     // Aggregate statistics in memory for each shipper
     const mappedShippers = shippers.map((shipper) => {
-      const claims = shipper.claims;
-      const ratings = shipper.ratings;
+      const claims = shipper.claims || [];
+      const ratings = shipper.ratings || [];
 
       const claims_count = claims.length;
       const paidClaims = claims.filter((c) => c.status === ClaimStatus.PAID);
@@ -216,6 +314,24 @@ export class ShipperService {
         claims_count,
         avg_pay_days,
         paid_claims_count,
+        broker: shipper.broker
+          ? {
+              id: shipper.broker.id,
+              name: shipper.broker.name,
+              email: shipper.broker.email,
+              created_at: shipper.broker.created_at,
+              updated_at: shipper.broker.updated_at,
+            }
+          : null,
+        location: shipper.location
+          ? {
+              address: shipper.location.address,
+              city: shipper.location.city,
+              state: shipper.location.state,
+              zip: shipper.location.zip,
+              country: shipper.location.country,
+            }
+          : null,
       };
     });
 
@@ -265,7 +381,202 @@ export class ShipperService {
         search,
         filters: {
           status,
+          type: QueryType.SHIPPER,
         },
+        total_count: filteredShippers.length,
+      },
+    });
+  }
+
+  // --- Get all brokers directly from broker table ---
+  private async getAllBrokers(query: {
+    cursor?: string;
+    limit?: number;
+    search?: string;
+  }) {
+    const { cursor, limit = 10, search } = query;
+
+    const where: Prisma.BrokerWhereInput = {};
+    let matchedIds: { id: string }[] = [];
+
+    if (search) {
+      await this.ensurePgTrgm();
+      matchedIds = await this.prisma.$queryRaw`
+    SELECT b.id
+    FROM brokers b
+    WHERE b.name ILIKE ${'%' + search + '%'}
+       OR b.email ILIKE ${'%' + search + '%'}
+       OR similarity(b.name, ${search}) > 0.15
+       OR similarity(b.email, ${search}) > 0.15
+    ORDER BY greatest(
+      similarity(b.name, ${search}),
+      similarity(b.email, ${search})
+    ) DESC
+  `;
+      const ids = (matchedIds || []).map((m) => m?.id).filter(Boolean);
+      where.id = { in: ids };
+    }
+
+    // Fetch all brokers from the broker table with their ratings and shipper facilities
+    const brokers = await this.prisma.broker.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+      include: {
+        ratings: {
+          select: {
+            rating: true,
+            review: true,
+            user_id: true,
+            created_at: true,
+          },
+        },
+        shipperFacilities: {
+          select: {
+            id: true,
+            name: true,
+            location: {
+              select: {
+                address: true,
+                city: true,
+                state: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // If no brokers found, return empty result with appropriate message
+    if (brokers.length === 0) {
+      return ResponseHelper.success({
+        message: search
+          ? 'No brokers found matching your search'
+          : 'No brokers available',
+        data: [],
+        meta_data: {
+          next_cursor: null,
+          limit: Number(limit),
+          search,
+          filters: {
+            type: QueryType.BROKER,
+          },
+          total_count: 0,
+        },
+      });
+    }
+
+    // Define the return type explicitly
+    interface MappedBroker {
+      id: string;
+      name: string;
+      email: string | null;
+      created_at: Date;
+      updated_at: Date;
+      avg_rating: number;
+      rating_category: string;
+      total_ratings: number;
+      total_shippers: number;
+      recent_shippers: Array<{
+        id: string;
+        name: string;
+        location: {
+          address: string | null;
+          city: string | null;
+          state: string | null;
+        } | null;
+      }>;
+    }
+
+    // Map broker data with explicit typing
+    const mappedBrokers: MappedBroker[] = brokers.map((broker) => {
+      const ratings = broker.ratings || [];
+      const shipperFacilities = broker.shipperFacilities || [];
+
+      // Calculate average rating (0-100)
+      let avg_rating = 0;
+      if (ratings.length > 0) {
+        const sumRating = ratings.reduce((sum, r) => sum + Number(r.rating), 0);
+        avg_rating = Math.round(sumRating / ratings.length);
+      }
+
+      // Count distinct users who rated this broker
+      const distinctUsers = new Set(ratings.map((r) => r.user_id));
+      const total_ratings = distinctUsers.size;
+
+      // Count shipper facilities associated with this broker
+      const total_shippers = shipperFacilities.length;
+
+      // Get recent shippers (last 5)
+      const recent_shippers = shipperFacilities.slice(0, 5).map((sf) => ({
+        id: sf.id,
+        name: sf.name,
+        location: sf.location
+          ? {
+              address: sf.location.address,
+              city: sf.location.city,
+              state: sf.location.state,
+            }
+          : null,
+      }));
+
+      // Determine rating category
+      let rating_category = 'Poor';
+      if (avg_rating >= 80) {
+        rating_category = 'Excellent';
+      } else if (avg_rating >= 60) {
+        rating_category = 'Good';
+      } else if (avg_rating >= 40) {
+        rating_category = 'Average';
+      } else if (avg_rating > 0) {
+        rating_category = 'Poor';
+      } else {
+        rating_category = 'Not Rated';
+      }
+
+      return {
+        id: broker.id,
+        name: broker.name,
+        email: broker.email,
+        created_at: broker.created_at,
+        updated_at: broker.updated_at,
+        avg_rating,
+        rating_category,
+        total_ratings,
+        total_shippers,
+        recent_shippers,
+      };
+    });
+
+    // Apply cursor pagination in memory
+    let startIndex = 0;
+    if (cursor) {
+      const index = mappedBrokers.findIndex((s) => s.id === cursor);
+      if (index !== -1) {
+        startIndex = index + 1;
+      }
+    }
+
+    const paginatedBrokers = mappedBrokers.slice(
+      startIndex,
+      startIndex + Number(limit),
+    );
+
+    const nextCursor =
+      startIndex + Number(limit) < mappedBrokers.length
+        ? mappedBrokers[startIndex + Number(limit) - 1].id
+        : null;
+
+    return ResponseHelper.success({
+      message: 'Brokers fetched successfully from broker table',
+      data: paginatedBrokers,
+      meta_data: {
+        next_cursor: nextCursor,
+        limit: Number(limit),
+        search,
+        filters: {
+          type: QueryType.BROKER,
+        },
+        total_count: mappedBrokers.length,
       },
     });
   }
@@ -354,62 +665,152 @@ export class ShipperService {
     stop_log_id: string,
     user_id: string,
     dto: CreateShipperRatingDto,
+    prisma?: Prisma.TransactionClient,
   ) {
-    const stopLog = await this.prisma.stopLog.findFirst({
-      where: { id: stop_log_id, user_id },
-    });
+    // Use provided transaction client or create a new one
+    const execute = async (tx: Prisma.TransactionClient) => {
+      // 1. Get the stop log with shipper facility and broker
+      const stopLog = await tx.stopLog.findFirst({
+        where: { id: stop_log_id, user_id },
+        include: {
+          shipper_facility: {
+            include: {
+              broker: true,
+            },
+          },
+        },
+      });
 
-    if (!stopLog) {
-      throw new NotFoundException('Stop log not found');
+      if (!stopLog) {
+        throw new NotFoundException('Stop log not found');
+      }
+
+      if (!stopLog.shipper_facility_id) {
+        throw new BadRequestException(
+          'This stop log does not have an associated shipper facility',
+        );
+      }
+
+      const results: any = {
+        shipper_rating: null,
+        broker_rating: null,
+      };
+
+      // 2. Check for existing shipper rating
+      const existingShipperRating = await tx.shipperFacilityRating.findUnique({
+        where: { stop_log_id },
+      });
+
+      if (existingShipperRating) {
+        throw new BadRequestException(
+          'Shipper rating already exists for this stop log',
+        );
+      }
+
+      // 3. Create shipper facility rating
+      results.shipper_rating = await tx.shipperFacilityRating.create({
+        data: {
+          rating: dto.rate,
+          user_id,
+          shipper_facility_id: stopLog.shipper_facility_id,
+          stop_log_id,
+        },
+      });
+
+      // 4. Handle broker rating if brokerRate is provided
+      if (dto.brokerRate !== undefined && dto.brokerRate !== null) {
+        // Check if shipper facility has a broker
+        if (!stopLog.shipper_facility?.broker_id) {
+          throw new BadRequestException(
+            'This shipper facility does not have an associated broker',
+          );
+        }
+
+        // Check if broker rating already exists for this stop log
+        const existingBrokerRating = await tx.brokerRating.findFirst({
+          where: {
+            stop_log_id,
+            user_id,
+          },
+        });
+
+        if (existingBrokerRating) {
+          throw new BadRequestException(
+            'Broker rating already exists for this stop log',
+          );
+        }
+
+        // Create broker rating
+        results.broker_rating = await tx.brokerRating.create({
+          data: {
+            rating: dto.brokerRate,
+            user_id,
+            broker_id: stopLog.shipper_facility.broker_id,
+            stop_log_id,
+          },
+          include: {
+            broker: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        });
+      }
+
+      return results;
+    };
+
+    // Execute with transaction
+    if (prisma) {
+      // If transaction client is provided, use it directly
+      const results = await execute(prisma);
+      return ResponseHelper.success({
+        message: results.broker_rating
+          ? 'Shipper and broker ratings submitted successfully'
+          : 'Shipper rating submitted successfully',
+        data: results,
+      });
+    } else {
+      // Create new transaction
+      return this.prisma.$transaction(async (tx) => {
+        const results = await execute(tx);
+        return ResponseHelper.success({
+          message: results.broker_rating
+            ? 'Shipper and broker ratings submitted successfully'
+            : 'Shipper rating submitted successfully',
+          data: results,
+        });
+      });
     }
-
-    if (!stopLog.shipper_facility_id) {
-      throw new BadRequestException(
-        'This stop log does not have an associated shipper facility',
-      );
-    }
-
-    const existingRating = await this.prisma.shipperFacilityRating.findUnique({
-      where: { stop_log_id },
-    });
-
-    if (existingRating) {
-      throw new BadRequestException('Rating already exists for this stop log');
-    }
-
-    const rating = await this.prisma.shipperFacilityRating.create({
-      data: {
-        rating: dto.rate,
-        user_id,
-        shipper_facility_id: stopLog.shipper_facility_id,
-        stop_log_id,
-      },
-    });
-
-    return ResponseHelper.success({
-      message: 'Rating submitted successfully',
-      data: rating,
-    });
   }
 
   async searchShippers(query: SearchShipperDto) {
-    const { search, cursor, limit = 10 } = query;
+    const { search, cursor, limit = 10, type = QueryType.SHIPPER } = query;
 
+    // --- Handle BROKER type ---
+    if (type === QueryType.BROKER) {
+      return this.searchBrokers({ cursor, limit, search });
+    }
+
+    // --- Handle SHIPPER type (default) ---
     let matchedIds: { id: string }[] = [];
 
     if (search) {
       await this.ensurePgTrgm();
       matchedIds = await this.prisma.$queryRaw`
-        SELECT sf.id
-        FROM shipper_facilities sf
-        LEFT JOIN locations l ON sf.location_id = l.id
-        WHERE sf.name ILIKE ${'%' + search + '%'}
-           OR coalesce(l.address, '') ILIKE ${'%' + search + '%'}
-           OR similarity(sf.name, ${search}) > 0.15
-           OR similarity(coalesce(l.address, ''), ${search}) > 0.15
-        ORDER BY greatest(similarity(sf.name, ${search}), similarity(coalesce(l.address, ''), ${search})) DESC
-        LIMIT 100
-      `;
+      SELECT sf.id
+      FROM shipper_facilities sf
+      LEFT JOIN locations l ON sf.location_id = l.id
+      WHERE sf.name ILIKE ${'%' + search + '%'}
+         OR coalesce(l.address, '') ILIKE ${'%' + search + '%'}
+         OR similarity(sf.name, ${search}) > 0.15
+         OR similarity(coalesce(l.address, ''), ${search}) > 0.15
+      ORDER BY greatest(similarity(sf.name, ${search}), similarity(coalesce(l.address, ''), ${search})) DESC
+      LIMIT 100
+    `;
     }
 
     const ids = (matchedIds || []).map((m) => m?.id).filter(Boolean);
@@ -520,6 +921,161 @@ export class ShipperService {
         next_cursor: nextCursor,
         limit: Number(limit),
         search,
+        filters: {
+          type: QueryType.SHIPPER,
+        },
+      },
+    });
+  }
+
+  // --- Search brokers ---
+  private async searchBrokers(query: {
+    cursor?: string;
+    limit?: number;
+    search?: string;
+  }) {
+    const { cursor, limit = 10, search } = query;
+
+    const where: Prisma.BrokerWhereInput = {};
+    let matchedIds: { id: string }[] = [];
+
+    if (search) {
+      await this.ensurePgTrgm();
+      matchedIds = await this.prisma.$queryRaw`
+      SELECT b.id
+      FROM brokers b
+      WHERE b.name ILIKE ${'%' + search + '%'}
+         OR b.email ILIKE ${'%' + search + '%'}
+         OR similarity(b.name, ${search}) > 0.15
+         OR similarity(b.email, ${search}) > 0.15
+      ORDER BY greatest(
+        similarity(b.name, ${search}),
+        similarity(b.email, ${search})
+      ) DESC
+      LIMIT 100
+    `;
+      const ids = (matchedIds || []).map((m) => m?.id).filter(Boolean);
+      where.id = { in: ids };
+    }
+
+    // Fetch all brokers from the broker table with their ratings
+    const brokers = await this.prisma.broker.findMany({
+      where,
+      orderBy: { created_at: 'desc' },
+      include: {
+        ratings: {
+          select: {
+            rating: true,
+            user_id: true,
+          },
+        },
+        shipperFacilities: {
+          select: {
+            id: true,
+            name: true,
+            location: {
+              select: {
+                address: true,
+                city: true,
+                state: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    // If no brokers found, return empty result
+    if (brokers.length === 0) {
+      return ResponseHelper.success({
+        message: search
+          ? 'No brokers found matching your search'
+          : 'No brokers available',
+        data: [],
+        meta_data: {
+          next_cursor: null,
+          limit: Number(limit),
+          search,
+          filters: {
+            type: QueryType.BROKER,
+          },
+          total_count: 0,
+        },
+      });
+    }
+
+    // Map broker data for search results
+    const mappedBrokers = brokers.map((broker) => {
+      const ratings = broker.ratings || [];
+      const shipperFacilities = broker.shipperFacilities || [];
+
+      // Calculate average rating (0-100)
+      let avg_rating = 0;
+      if (ratings.length > 0) {
+        const sumRating = ratings.reduce((sum, r) => sum + Number(r.rating), 0);
+        avg_rating = Math.round(sumRating / ratings.length);
+      }
+
+      // Get the first shipper facility as the main location (if any)
+      const firstFacility = shipperFacilities[0];
+      let address = null;
+      let lat = null;
+      let lng = null;
+
+      if (firstFacility?.location) {
+        address =
+          firstFacility.location.address ||
+          [firstFacility.location.city, firstFacility.location.state]
+            .filter(Boolean)
+            .join(', ') ||
+          null;
+        // Note: Broker model doesn't have lat/lng directly,
+        // you might want to add these to the Broker model or use the facility's location
+      }
+
+      return {
+        id: broker.id,
+        name: broker.name,
+        address: address,
+        lat: lat,
+        lng: lng,
+        rating: avg_rating,
+        // Additional broker-specific fields for search
+        email: broker.email,
+        total_shippers: shipperFacilities.length,
+      };
+    });
+
+    // Apply cursor pagination in memory
+    let startIndex = 0;
+    if (cursor) {
+      const index = mappedBrokers.findIndex((s) => s.id === cursor);
+      if (index !== -1) {
+        startIndex = index + 1;
+      }
+    }
+
+    const paginatedBrokers = mappedBrokers.slice(
+      startIndex,
+      startIndex + Number(limit),
+    );
+
+    const nextCursor =
+      startIndex + Number(limit) < mappedBrokers.length
+        ? mappedBrokers[startIndex + Number(limit) - 1].id
+        : null;
+
+    return ResponseHelper.success({
+      message: 'Brokers searched successfully',
+      data: paginatedBrokers,
+      meta_data: {
+        next_cursor: nextCursor,
+        limit: Number(limit),
+        search,
+        filters: {
+          type: QueryType.BROKER,
+        },
+        total_count: mappedBrokers.length,
       },
     });
   }

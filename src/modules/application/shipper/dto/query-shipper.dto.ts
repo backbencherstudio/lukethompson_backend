@@ -9,7 +9,21 @@ export enum QueryShipperStatus {
   POOR_PAYERS = 'POOR_PAYERS',
 }
 
+export enum QueryType {
+  SHIPPER = 'shipper',
+  BROKER = 'broker',
+}
+
 export class QueryShipperDto {
+  @ApiPropertyOptional({
+    enum: QueryType,
+    default: QueryType.SHIPPER,
+    description: 'Type of entity to fetch: shipper or broker',
+  })
+  @IsOptional()
+  @IsEnum(QueryType)
+  type?: QueryType = QueryType.SHIPPER;
+
   @ApiPropertyOptional({
     example: 'cl0b7e6d5f4g3h2i1j0k9l8m',
     description: 'Cursor for pagination',
@@ -26,7 +40,7 @@ export class QueryShipperDto {
 
   @ApiPropertyOptional({
     example: 'Walmart',
-    description: 'Search by facility name',
+    description: 'Search by facility name or broker name',
   })
   @IsOptional()
   @IsString()
@@ -35,7 +49,7 @@ export class QueryShipperDto {
   @ApiPropertyOptional({
     enum: QueryShipperStatus,
     default: QueryShipperStatus.ALL,
-    description: 'Filter by rating category',
+    description: 'Filter by rating category (only applies to shippers)',
   })
   @IsOptional()
   @IsEnum(QueryShipperStatus)
@@ -44,8 +58,17 @@ export class QueryShipperDto {
 
 export class SearchShipperDto {
   @ApiPropertyOptional({
+    enum: QueryType,
+    default: QueryType.SHIPPER,
+    description: 'Type of entity to search: shipper or broker',
+  })
+  @IsOptional()
+  @IsEnum(QueryType)
+  type?: QueryType = QueryType.SHIPPER;
+
+  @ApiPropertyOptional({
     example: 'Walmart',
-    description: 'Search keyword for facility name or address',
+    description: 'Search keyword for facility name, address, or broker name',
   })
   @IsOptional()
   @IsString()

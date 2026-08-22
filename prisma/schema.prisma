@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "./generated"
@@ -74,6 +71,7 @@ model User {
   subscriptions            UserSubscription[]
   feature_usages           FeatureUsage[]
   shipper_facility_ratings ShipperFacilityRating[]
+  broker_ratings           BrokerRating[]
 
   @@index([status])
   @@index([created_at])
@@ -170,7 +168,6 @@ model RoleUser {
   @@map("role_users")
 }
 
-// this table stores notification event
 model NotificationEvent {
   id         String    @id @default(cuid())
   created_at DateTime  @default(now())
@@ -516,6 +513,7 @@ model StopLog {
   shipper_facility ShipperFacility?       @relation(fields: [shipper_facility_id], references: [id], onDelete: Cascade)
   arrival_location Location?              @relation("arrival_location", fields: [arrival_location_id], references: [id])
   facility_address Location?              @relation("facility_address", fields: [facility_address_id], references: [id])
+  broker_ratings   BrokerRating[]         // ADDED: opposite relation for BrokerRating
 
   @@index([user_id])
   @@index([created_at])
@@ -570,10 +568,14 @@ model ShipperFacility {
   normalized_name String  @unique
   location_id     String?
 
+  // Broker relation
+  broker_id String?
+  broker    Broker? @relation(fields: [broker_id], references: [id], onDelete: SetNull)
+
   stop_logs StopLog[]
   claims    Claim[]
   ratings   ShipperFacilityRating[]
-  location  Location?               @relation(fields: [location_id], references: [id], onDelete: SetNull)
+  location  Location? @relation(fields: [location_id], references: [id], onDelete: SetNull)
 
   @@map("shipper_facilities")
 }
@@ -597,6 +599,41 @@ model ShipperFacilityRating {
   @@index([user_id])
   @@index([shipper_facility_id])
   @@map("shipper_facility_ratings")
+}
+
+model Broker {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  name            String
+  email           String?
+
+  shipperFacilities ShipperFacility[]
+  ratings           BrokerRating[]
+
+  @@map("brokers")
+}
+
+model BrokerRating {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  rating Decimal @db.Decimal(5, 2)   // 0 – 100
+  review String?
+
+  user_id     String
+  broker_id   String
+  stop_log_id String?                // optional – link to a specific StopLog
+
+  user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  broker   Broker   @relation(fields: [broker_id], references: [id], onDelete: Cascade)
+  stop_log StopLog? @relation(fields: [stop_log_id], references: [id], onDelete: SetNull)
+
+  @@index([user_id])
+  @@index([broker_id])
+  @@map("broker_ratings")
 }
 
 enum ClaimStatus {
@@ -630,19 +667,15 @@ enum ClaimEventType {
 }
 
 model Claim {
-  // --- Meta & Timestamps ---
   id         String   @id @default(cuid())
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  // --- Core Info ---
   status ClaimStatus @default(DRAFT)
 
-  // --- Financials ---
   claim_amount Int
   paid_amount  Int?
 
-  // --- Lifecycle Events ---
   sent_at                 DateTime?
   paid_at                 DateTime?
   denied_at               DateTime?
@@ -656,37 +689,30 @@ model Claim {
   small_claims_filed_at   DateTime?
   collections_referred_at DateTime?
 
-  // --- Denial Details ---
   denied_by     String?
   denial_reason String?
 
-  // --- Communication ---
   recipient_email String?
-  send_method     String  @default("EMAIL") // EMAIL, SMS, SHARE
+  send_method     String  @default("EMAIL")
 
   recourse_level Int @default(0)
 
-  // --- Follow-up Management ---
   followup_due_at   DateTime?
   last_follow_up_at DateTime?
   followup_count    Int       @default(0)
 
-  // --- Proof Package ---
   proof_package_generated_at DateTime?
   proof_package_url          String?
   proof_package_version      Int       @default(1)
 
-  // --- Legal ---
   usps_tracking_number     String?
   fmcsa_complaint_number   String?
   small_claims_case_number String?
 
-  // --- Foreign Keys ---
   user_id             String
   shipper_facility_id String
   stop_log_id         String @unique
 
-  // --- Relations ---
   shipper_facility ShipperFacility @relation(fields: [shipper_facility_id], references: [id])
   user             User            @relation(fields: [user_id], references: [id])
   stop_log         StopLog         @relation(fields: [stop_log_id], references: [id])
@@ -706,8 +732,8 @@ model ClaimEvent {
   claim    Claim  @relation(fields: [claim_id], references: [id], onDelete: Cascade)
 
   type           ClaimEventType
-  recourse_level Int? // Tracks the claim's broad recourse_level (e.g., 1 for follow-ups)
-  followup_level Int? // Tracks the specific follow-up sub-level (1, 2, or 3)
+  recourse_level Int?
+  followup_level Int?
   description    String?
 
   @@index([claim_id])
