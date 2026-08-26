@@ -60,6 +60,8 @@ model User {
   receiver_notifications Notification[] @relation("receiver")
   sender_notifications   Notification[] @relation("sender")
 
+  company_info UserCompany?
+
   user_payment_methods     UserPaymentMethod[]
   user_settings            UserSetting[]
   ucodes                   Ucode[]
@@ -209,6 +211,32 @@ model Notification {
   @@index([notification_event_id])
   @@index([created_at])
   @@map("notifications")
+}
+
+model UserCompany {
+  id         String   @id @default(cuid())
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  company_name String?
+  contact_name String?
+  phone_number String?
+  email        String?
+
+  // Mailing Address
+  address_line1 String?
+  address_line2 String?
+  city          String?
+  state         String?
+  postal_code   String?
+  country       String?
+
+  @@unique([user_id])
+  @@index([user_id])
+  @@map("user_companies")
 }
 
 model UserPaymentMethod {
@@ -482,6 +510,7 @@ model StopLog {
 
   user_id             String?
   shipper_facility_id String?
+  broker_id           String?  // Add this line
 
   // snapshots for evidence of stop logs
   facility_name        String
@@ -511,13 +540,15 @@ model StopLog {
   rating           ShipperFacilityRating?
   user             User?                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
   shipper_facility ShipperFacility?       @relation(fields: [shipper_facility_id], references: [id], onDelete: Cascade)
+  broker           Broker?                @relation(fields: [broker_id], references: [id], onDelete: SetNull)  // Add this
   arrival_location Location?              @relation("arrival_location", fields: [arrival_location_id], references: [id])
   facility_address Location?              @relation("facility_address", fields: [facility_address_id], references: [id])
-  broker_ratings   BrokerRating[]         // ADDED: opposite relation for BrokerRating
+  broker_ratings   BrokerRating[]
 
   @@index([user_id])
   @@index([created_at])
   @@index([shipper_facility_id])
+  @@index([broker_id])  // Add this index
   @@map("stop_logs")
 }
 
@@ -575,7 +606,7 @@ model ShipperFacility {
   stop_logs StopLog[]
   claims    Claim[]
   ratings   ShipperFacilityRating[]
-  location  Location? @relation(fields: [location_id], references: [id], onDelete: SetNull)
+  location  Location?               @relation(fields: [location_id], references: [id], onDelete: SetNull)
 
   @@map("shipper_facilities")
 }
@@ -606,11 +637,17 @@ model Broker {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  name            String
-  email           String?
+  name        String
+  email       String
+  phone       String?
+  brokerId    String?   @unique
+
+  location_id String?
+  location    Location? @relation(fields: [location_id], references: [id], onDelete: SetNull)
 
   shipperFacilities ShipperFacility[]
   ratings           BrokerRating[]
+  stopLogs          StopLog[]
 
   @@map("brokers")
 }
@@ -620,12 +657,12 @@ model BrokerRating {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  rating Decimal @db.Decimal(5, 2)   // 0 – 100
+  rating Decimal @db.Decimal(5, 2) // 0 – 100
   review String?
 
   user_id     String
   broker_id   String
-  stop_log_id String?                // optional – link to a specific StopLog
+  stop_log_id String? // optional – link to a specific StopLog
 
   user     User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
   broker   Broker   @relation(fields: [broker_id], references: [id], onDelete: Cascade)
@@ -756,6 +793,7 @@ model Location {
   arrival_locations  StopLog[]         @relation("arrival_location")
   facility_addresses StopLog[]         @relation("facility_address")
   shipperFacilities  ShipperFacility[]
+  brokers            Broker[]
 
   @@map("locations")
 }

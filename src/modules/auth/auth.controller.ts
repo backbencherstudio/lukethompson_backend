@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -49,6 +50,7 @@ import {
   AuthPasswordUpdatedResponseDto,
   AuthEmailUpdatedResponseDto,
 } from './dto/response-auth.dto';
+import { ParseCompanyPipe } from 'src/common/pipe/parseCompanyPipe';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -111,7 +113,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Update profile info',
     description:
-      'Updates basic user details (name, phone number, and avatar image). Note: Avatar images are uploaded to the S3 bucket, and any previous avatar image file is automatically cleaned up/deleted from the storage driver. Requires JWT authorization.',
+      'Updates basic user details (name, phone number, and avatar image) and company information. Note: Avatar images are uploaded to the S3 bucket, and any previous avatar image file is automatically cleaned up/deleted from the storage driver. Requires JWT authorization.',
   })
   @ApiResponse({
     status: 200,
@@ -126,25 +128,23 @@ export class AuthController {
   @Patch('update')
   @UseInterceptors(
     FileInterceptor('image', {
-      // storage: diskStorage({
-      //   destination:
-      //     appConfig().storageUrl.rootUrl + appConfig().storageUrl.avatar,
-      //   filename: (req, file, cb) => {
-      //     const randomName = Array(32)
-      //       .fill(null)
-      //       .map(() => Math.round(Math.random() * 16).toString(16))
-      //       .join('');
-      //     return cb(null, `${randomName}${file.originalname}`);
-      //   },
-      // }),
       storage: memoryStorage(),
     }),
   )
-  updateUser(
+  async updateUser(
     @Req() req: Request,
-    @Body() data: UpdateRegisteredUserDto,
+    @Body(ParseCompanyPipe) data: UpdateRegisteredUserDto,
     @UploadedFile() avatar: Express.Multer.File,
   ) {
+    // Parse company if it's a string
+    if (data.company && typeof data.company === 'string') {
+      try {
+        data.company = JSON.parse(data.company);
+      } catch (e) {
+        throw new BadRequestException('Invalid company data format');
+      }
+    }
+
     return this.authService.updateUser(req?.user?.id, data, avatar);
   }
 

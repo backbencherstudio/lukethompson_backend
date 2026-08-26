@@ -100,7 +100,7 @@ export class StopLogService {
   }
 
   async putStopLog(dto: PutStopLogDto, user_id: string) {
-    const { step, bol_number } = dto;
+    const { step, bol_number, broker_id } = dto;
     const config = this.STEP_CONFIG[step];
     if (!config) {
       throw new BadRequestException('Invalid stop log step');
@@ -119,6 +119,10 @@ export class StopLogService {
             bol_number: true,
             user_id: true,
             status: true,
+            broker_id: true,
+            broker_name: true,
+            broker_email: true,
+            broker_mc_number: true,
             _count: {
               select: {
                 attachments: true,
@@ -138,6 +142,10 @@ export class StopLogService {
             bol_number: true,
             user_id: true,
             status: true,
+            broker_id: true,
+            broker_name: true,
+            broker_email: true,
+            broker_mc_number: true,
             _count: {
               select: {
                 attachments: true,
@@ -256,6 +264,10 @@ export class StopLogService {
       docked_at: true,
       completed_at: true,
       departed_at: true,
+      broker_id: true,
+      broker_name: true,
+      broker_email: true,
+      broker_mc_number: true,
       arrival_location: true,
       facility_address: true,
       attachments: {
@@ -280,6 +292,36 @@ export class StopLogService {
 
         if (!user) {
           throw new UnauthorizedException('User not found');
+        }
+
+        // Resolve broker if provided
+        let brokerInfo: {
+          id: string;
+          name: string;
+          email: string;
+          mcNumber?: string;
+        } | null = null;
+        if (broker_id) {
+          const broker = await tx.broker.findUnique({
+            where: { id: broker_id },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              brokerId: true,
+            },
+          });
+
+          if (!broker) {
+            throw new BadRequestException('Invalid broker id');
+          }
+
+          brokerInfo = {
+            id: broker.id,
+            name: broker.name,
+            email: broker.email,
+            mcNumber: broker.brokerId || undefined,
+          };
         }
 
         const now = new Date();
@@ -358,13 +400,11 @@ export class StopLogService {
 
                   const facilityName = dto.facility_name.trim();
 
-                  // FIX: Use the same normalization logic as createShipper
                   const normalizedName = facilityName
                     .toLowerCase()
                     .trim()
                     .replace(/[^a-z0-9]/g, '_');
 
-                  // First, try to find existing facility by normalized name only (like createShipper does)
                   const existingSF = await tx.shipperFacility.findUnique({
                     where: { normalized_name: normalizedName },
                     select: { id: true, name: true },
@@ -374,9 +414,6 @@ export class StopLogService {
                     shipperFacilityId = existingSF.id;
                     shipperFacilityName = existingSF.name;
                   } else {
-                    // If no existing facility found, create a new one
-                    // Note: We're using facilityAddressId which might be undefined
-                    // This matches the createShipper behavior
                     const newSF = await tx.shipperFacility.create({
                       data: {
                         name: facilityName,
@@ -401,6 +438,10 @@ export class StopLogService {
                     arrived_at: now,
                     arrival_location_id: arrivalLocationId,
                     facility_address_id: facilityAddressId,
+                    broker_id: brokerInfo?.id || null,
+                    broker_name: brokerInfo?.name || null,
+                    broker_email: brokerInfo?.email || null,
+                    broker_mc_number: brokerInfo?.mcNumber || null,
                     attachments: uploadedAttachments.length
                       ? {
                           create: uploadedAttachments,
@@ -440,6 +481,14 @@ export class StopLogService {
                     bol_number: bol_number.trim() || null,
                   }),
                   status: determineStatus,
+                  // Update broker fields if broker_id is provided
+                  ...(broker_id &&
+                    brokerInfo && {
+                      broker_id: brokerInfo.id,
+                      broker_name: brokerInfo.name,
+                      broker_email: brokerInfo.email,
+                      broker_mc_number: brokerInfo.mcNumber || null,
+                    }),
                   attachments: uploadedAttachments.length
                     ? {
                         create: uploadedAttachments,
@@ -713,6 +762,7 @@ export class StopLogService {
             broker: true,
           },
         },
+        broker: true,
       },
     });
 
@@ -751,14 +801,35 @@ export class StopLogService {
       }
     }
 
-    // Get broker information from related shipper_facility
-    const broker = stoplog.shipper_facility?.broker
-      ? {
-          id: stoplog.shipper_facility.broker.id,
-          name: stoplog.shipper_facility.broker.name,
-          email: stoplog.shipper_facility.broker.email,
-        }
-      : null;
+    // Get broker information - prefer direct broker relation first, fallback to shipper_facility broker
+    let broker = null;
+
+    // First try to get broker directly from stoplog
+    if (stoplog.broker) {
+      broker = {
+        id: stoplog.broker.id,
+        name: stoplog.broker.name,
+        email: stoplog.broker.email,
+        phone: stoplog.broker.phone,
+        brokerId: stoplog.broker.brokerId,
+        location_id: stoplog.broker.location_id,
+        created_at: stoplog.broker.created_at,
+        updated_at: stoplog.broker.updated_at,
+      };
+    }
+    // Fallback to broker from shipper_facility
+    else if (stoplog.shipper_facility?.broker) {
+      broker = {
+        id: stoplog.shipper_facility.broker.id,
+        name: stoplog.shipper_facility.broker.name,
+        email: stoplog.shipper_facility.broker.email,
+        phone: stoplog.shipper_facility.broker.phone,
+        brokerId: stoplog.shipper_facility.broker.brokerId,
+        location_id: stoplog.shipper_facility.broker.location_id,
+        created_at: stoplog.shipper_facility.broker.created_at,
+        updated_at: stoplog.shipper_facility.broker.updated_at,
+      };
+    }
 
     if (stoplog.status !== PrismaStopLogStatus.COMPLETED) {
       return ResponseHelper.success({
@@ -1685,16 +1756,140 @@ export class StopLogService {
         user_id,
         status: PrismaStopLogStatus.ACTIVE,
       },
-      select: {
-        id: true,
+      include: {
+        user: {
+          select: {
+            rate_per_hour: true,
+            free_wait_time: true,
+          },
+        },
+        arrival_location: true,
+        facility_address: true,
+        attachments: {
+          select: {
+            id: true,
+            file_name: true,
+            file_url: true,
+            mime_type: true,
+            type: true,
+            size_bytes: true,
+          },
+        },
+        claim: true,
+        shipper_facility: {
+          include: {
+            broker: true,
+          },
+        },
+        broker: true,
       },
     });
 
+    if (!activeLog) {
+      return ResponseHelper.success({
+        message: 'No active stop log found',
+        data: null,
+      });
+    }
+
+    const currentStep = this.getCurrentStep(activeLog);
+
+    const attachments = activeLog.attachments
+      .filter((attachment) => {
+        return attachment.type !== AttachmentType.DETENTION_SUMMARY;
+      })
+      .map((attachment) => {
+        return {
+          ...attachment,
+          file_url: NajimStorage.url(attachment.file_url, {
+            signed: true,
+            expires: 86400,
+          }),
+        };
+      });
+
+    // Get broker information - prefer direct broker relation first, fallback to shipper_facility broker
+    let broker = null;
+
+    // First try to get broker directly from stoplog
+    if (activeLog.broker) {
+      broker = {
+        id: activeLog.broker.id,
+        name: activeLog.broker.name,
+        email: activeLog.broker.email,
+        phone: activeLog.broker.phone,
+        brokerId: activeLog.broker.brokerId,
+        location_id: activeLog.broker.location_id,
+        created_at: activeLog.broker.created_at,
+        updated_at: activeLog.broker.updated_at,
+      };
+    }
+    // Fallback to broker from shipper_facility
+    else if (activeLog.shipper_facility?.broker) {
+      broker = {
+        id: activeLog.shipper_facility.broker.id,
+        name: activeLog.shipper_facility.broker.name,
+        email: activeLog.shipper_facility.broker.email,
+        phone: activeLog.shipper_facility.broker.phone,
+        brokerId: activeLog.shipper_facility.broker.brokerId,
+        location_id: activeLog.shipper_facility.broker.location_id,
+        created_at: activeLog.shipper_facility.broker.created_at,
+        updated_at: activeLog.shipper_facility.broker.updated_at,
+      };
+    }
+
+    // Get detention summary if exists
+    let detention_summary_pdf = null;
+    const DetentionSummary = activeLog?.attachments?.find((attachment) => {
+      return attachment.type === AttachmentType.DETENTION_SUMMARY;
+    });
+
+    if (DetentionSummary) {
+      detention_summary_pdf = {
+        ...DetentionSummary,
+        file_url: NajimStorage.url(DetentionSummary.file_url, {
+          signed: true,
+          expires: 63072000,
+        }),
+      };
+    }
+
     return ResponseHelper.success({
-      message: activeLog
-        ? 'Active stop log fetched successfully'
-        : 'No active stop log found',
-      data: activeLog ? { id: activeLog.id } : null,
+      message: 'Active stop log fetched successfully',
+      data: {
+        id: activeLog.id,
+        user_id: activeLog.user_id,
+        shipper_facility_id: activeLog.shipper_facility_id,
+        shipper_id: activeLog.shipper_facility_id,
+        shipper_name: activeLog.shipper_name,
+        facility_name: activeLog.facility_name,
+        bol_number: activeLog.bol_number,
+        status: activeLog.status,
+        arrived_at: activeLog.arrived_at,
+        docked_at: activeLog.docked_at,
+        completed_at: activeLog.completed_at,
+        departed_at: activeLog.departed_at,
+        arrival_location: activeLog.arrival_location,
+        facility_address: activeLog.facility_address,
+        detention_summary_pdf,
+        attachments,
+        current_step: currentStep,
+        broker: broker,
+        claim: activeLog?.claim
+          ? {
+              id: activeLog.claim.id,
+              status: activeLog.claim.status,
+              amount: activeLog.claim.claim_amount,
+              level: activeLog.claim.recourse_level,
+              level_name:
+                RECOURSE_LEVELS[activeLog.claim.recourse_level]?.name ||
+                'Unknown Stage',
+              followup_count: activeLog.claim.followup_count,
+              send_method: activeLog.claim.send_method,
+              sent_at: activeLog.claim.sent_at,
+            }
+          : null,
+      },
     });
   }
 }

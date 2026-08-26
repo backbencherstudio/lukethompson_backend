@@ -1,3 +1,4 @@
+// put-stop-log.dto.ts
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsEnum,
@@ -78,6 +79,13 @@ export class PutStopLogDto {
   @IsString()
   @IsOptional()
   shipper_id?: string;
+
+  @ApiPropertyOptional({
+    example: 'cmabc123broker',
+    description: 'Existing broker id.',
+  })
+  @IsOptional()
+  broker_id?: string;
 
   @ApiPropertyOptional({
     example: 'Acme Warehouse',
