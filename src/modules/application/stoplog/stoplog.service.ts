@@ -766,7 +766,9 @@ export class StopLogService {
       },
     });
 
-    if (!stoplog) throw new UnauthorizedException('Stop log not found');
+    if (!stoplog) {
+      throw new UnauthorizedException('Stop log not found');
+    }
 
     const currentStep = this.getCurrentStep(stoplog);
 
@@ -785,6 +787,7 @@ export class StopLogService {
       });
 
     let detention_summary_pdf = null;
+
     if (stoplog.status === PrismaStopLogStatus.COMPLETED) {
       const DetentionSummary = stoplog?.attachments?.find((attachment) => {
         return attachment.type === AttachmentType.DETENTION_SUMMARY;
@@ -801,7 +804,8 @@ export class StopLogService {
       }
     }
 
-    // Get broker information - prefer direct broker relation first, fallback to shipper_facility broker
+    // Get broker information - prefer direct broker relation first,
+    // fallback to shipper_facility broker
     let broker = null;
 
     // First try to get broker directly from stoplog
@@ -817,6 +821,7 @@ export class StopLogService {
         updated_at: stoplog.broker.updated_at,
       };
     }
+
     // Fallback to broker from shipper_facility
     else if (stoplog.shipper_facility?.broker) {
       broker = {
@@ -830,6 +835,22 @@ export class StopLogService {
         updated_at: stoplog.shipper_facility.broker.updated_at,
       };
     }
+
+    // ==================== GPS COORDINATES ====================
+
+    const gps_coordinates = stoplog.arrival_location
+      ? {
+          lat: Number(stoplog.arrival_location.lat),
+          lng: Number(stoplog.arrival_location.lng),
+        }
+      : stoplog.facility_address
+        ? {
+            lat: Number(stoplog.facility_address.lat),
+            lng: Number(stoplog.facility_address.lng),
+          }
+        : null;
+
+    // ==================== NON-COMPLETED STOP LOG ====================
 
     if (stoplog.status !== PrismaStopLogStatus.COMPLETED) {
       return ResponseHelper.success({
@@ -849,6 +870,7 @@ export class StopLogService {
           departed_at: stoplog.departed_at,
           arrival_location: stoplog.arrival_location,
           facility_address: stoplog.facility_address,
+          gps_coordinates,
           detention_summary_pdf,
           attachments,
           current_step: currentStep,
@@ -871,9 +893,12 @@ export class StopLogService {
       });
     }
 
+    // ==================== TIME CALCULATION ====================
+
     const arrived = stoplog.arrived_at
       ? new Date(stoplog.arrived_at).getTime()
       : 0;
+
     const departed = stoplog.departed_at
       ? new Date(stoplog.departed_at).getTime()
       : 0;
@@ -884,24 +909,24 @@ export class StopLogService {
         : null;
 
     const totalTimeNum = totalTime ? parseFloat(totalTime) : 0;
+
     const payableTime = Math.max(
       0,
       totalTimeNum - (stoplog.user?.free_wait_time || 0),
     );
 
     const payableTimeFormatted = payableTime.toFixed(2);
+
     const totalAmount = payableTime * (stoplog.user?.rate_per_hour || 0);
+
+    // ==================== ADDRESS ====================
 
     const address =
       stoplog.facility_address?.address ||
       stoplog.arrival_location?.address ||
       null;
 
-    const gps_coordinates = stoplog.arrival_location
-      ? `${stoplog.arrival_location.lat}, ${stoplog.arrival_location.lng}`
-      : stoplog.facility_address
-        ? `${stoplog.facility_address.lat}, ${stoplog.facility_address.lng}`
-        : null;
+    // ==================== COMPLETED RESPONSE ====================
 
     return ResponseHelper.success({
       message: 'Stop log fetched successfully',
@@ -915,7 +940,10 @@ export class StopLogService {
         completed_at: stoplog.completed_at,
         current_step: currentStep,
         bol_number: stoplog.bol_number,
+
+        // GPS coordinates as separate numeric fields
         gps_coordinates,
+
         rate_per_hour: stoplog.user?.rate_per_hour + '',
         free_wait_time: stoplog.user?.free_wait_time + '',
         billable_time: payableTimeFormatted + 'h',
@@ -924,9 +952,11 @@ export class StopLogService {
         address,
         detention: totalAmount.toFixed(2),
         lost: totalAmount.toFixed(2),
+
         detention_summary_pdf,
         attachments,
         broker: broker,
+
         claim: stoplog?.claim
           ? {
               id: stoplog.claim.id,
