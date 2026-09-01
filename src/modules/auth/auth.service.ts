@@ -607,4 +607,57 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
   }
+
+  async deleteAccount({
+    user_id,
+    password,
+  }: {
+    user_id: string;
+    password: string;
+  }) {
+    // Get user details
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: user_id,
+        deleted_at: null, // Ensure account is not already deleted
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found or already deleted');
+    }
+
+    // Verify password
+    const isValidPassword = await this.userRepository.validatePassword({
+      email: user.email,
+      password: password,
+    });
+
+    if (!isValidPassword) {
+      throw new BadRequestException('Invalid password');
+    }
+
+    // Perform soft delete
+    const deletedUser = await this.prisma.user.update({
+      where: {
+        id: user_id,
+      },
+      data: {
+        deleted_at: new Date(),
+        status: -2, // -2 = deactivated
+        // Change email to prevent reuse
+        email: `deleted_${user_id}_${user.email}`,
+        // If phone_number exists, modify it to prevent reuse
+        ...(user.phone_number && {
+          phone_number: `deleted_${user_id}_${user.phone_number}`,
+        }),
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Account deleted successfully',
+      deleted_at: deletedUser.deleted_at,
+    };
+  }
 }

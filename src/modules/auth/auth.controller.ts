@@ -2,8 +2,8 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
-  NotFoundException,
   Patch,
   Post,
   Req,
@@ -51,6 +51,7 @@ import {
   AuthEmailUpdatedResponseDto,
 } from './dto/response-auth.dto';
 import { ParseCompanyPipe } from 'src/common/pipe/parseCompanyPipe';
+import { DeleteAccountDto } from './dto/delete-account.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -299,6 +300,26 @@ export class AuthController {
       user_id,
       new_email: changeEmailAddressDto.email,
       token: changeEmailAddressDto.token,
+    });
+  }
+
+  @ApiOperation({
+    summary: 'Delete user account',
+    description:
+      'Deletes the user account after verifying the current password. This performs a soft delete, making the account inaccessible for future logins.',
+  })
+  @ApiBearerAuth('user_token')
+  @ApiBearerAuth('admin_token')
+  @ApiBody({ type: DeleteAccountDto })
+  @UseGuards(JwtAuthGuard)
+  @Delete('delete-account')
+  async deleteAccount(
+    @Req() req: Request,
+    @Body() deleteAccountDto: DeleteAccountDto,
+  ) {
+    return this.authService.deleteAccount({
+      user_id: req.user.id,
+      password: deleteAccountDto.password,
     });
   }
 }
