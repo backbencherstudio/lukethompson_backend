@@ -24,6 +24,7 @@ import {
   ResetPasswordDto,
   VerifyEmailDto,
 } from './dto/create-auth.dto';
+import { RevenueCatService } from 'src/common/webhook/revenuecat/revenuecat.service';
 
 @Injectable()
 export class AuthService {
@@ -34,6 +35,7 @@ export class AuthService {
     private userRepository: UserRepository,
     private ucodeRepository: UcodeRepository,
     @InjectRedis() private readonly redis: Redis,
+    private revenueCatService: RevenueCatService,
   ) {}
 
   async me(userId: string) {
@@ -52,6 +54,7 @@ export class AuthService {
         type: true,
         created_at: true,
         updated_at: true,
+        founding_member: true,
         // Include company info
         company_info: {
           select: {
@@ -83,6 +86,7 @@ export class AuthService {
       rate_per_hour: user.rate_per_hour,
       free_wait_time: user.free_wait_time,
       type: user.type,
+      founding_member: user.founding_member,
       created_at: user.created_at,
       updated_at: user.updated_at,
     };
@@ -274,7 +278,6 @@ export class AuthService {
 
   async register(registerUserDto: RegisterUserDto) {
     // Check if email already exist
-
     const { name, email, password, type, free_wait_time, rate_per_hour } =
       registerUserDto;
     const userEmailExist = await this.userRepository.exist({
@@ -286,6 +289,7 @@ export class AuthService {
       throw new BadRequestException('Email already exist');
     }
 
+    // Create user in your database
     const user = await this.userRepository.createUser({
       name: name,
       email: email,
@@ -295,37 +299,42 @@ export class AuthService {
       type,
     });
 
-    // create stripe customer account
-    let stripeCustomer = null;
-    try {
-      stripeCustomer = await StripePayment.createCustomer({
-        user_id: user.id,
-        email: email,
-        name: name,
-      });
-    } catch (stripeError: any) {
-      console.error('Stripe customer creation failed:', stripeError.message);
-    }
+    // // =============================================
+    // // CREATE REVENUECAT CUSTOMER & SAVE ID
+    // // =============================================
+    // try {
+    //   // Create customer in RevenueCat
+    //   const revenueCatCustomerId = await this.revenueCatService.createCustomer({
+    //     userId: user.id,
+    //     email: email,
+    //     name: name,
+    //   });
 
-    if (stripeCustomer) {
-      await this.prisma.user.update({
-        where: {
-          id: user.id,
-        },
-        data: {
-          billing_id: stripeCustomer.id,
-        },
-      });
-    }
+    //   console.log('RevenueCat customer created:', revenueCatCustomerId);
 
-    // ----------------------------------------------------
-    // // create otp code
+    //   // IMPORTANT: Save the RevenueCat ID to your database
+    //   await this.prisma.user.update({
+    //     where: { id: user.id },
+    //     data: {
+    //       subscription_customer_id: revenueCatCustomerId,
+    //     },
+    //   });
+
+    //   console.log('RevenueCat ID saved to user:', user.id);
+    // } catch (error: any) {
+    //   console.error('RevenueCat customer creation failed:', error.message);
+    //   // Don't throw error - user registration still succeeds
+    // }
+
+    // =============================================
+    // CREATE OTP CODE
+    // =============================================
     const token = await this.ucodeRepository.createToken({
       userId: user.id,
       isOtp: true,
     });
 
-    // // send otp code to email
+    // Send OTP code to email
     await this.mailService.sendOtpCodeToEmail({
       email: email,
       name: name,
@@ -336,27 +345,6 @@ export class AuthService {
       success: true,
       message: 'We have sent an OTP code to your email',
     };
-
-    // ----------------------------------------------------
-
-    // Generate verification token
-    // const token = await this.ucodeRepository.createVerificationToken({
-    //   userId: user.data.id,
-    //   email: email,
-    // });
-
-    // Send verification email with token
-    // await this.mailService.sendVerificationLink({
-    //   email,
-    //   name: email,
-    //   token: token.token,
-    //   type: type,
-    // });
-
-    // return {
-    //   success: true,
-    //   message: 'We have sent a verification link to your email',
-    // };
   }
 
   async forgotPassword(email) {

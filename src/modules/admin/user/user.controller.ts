@@ -11,7 +11,7 @@ import {
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateFoundingMemberDto, UpdateUserDto } from './dto/update-user.dto';
 import {
   ApiBearerAuth,
   ApiExcludeEndpoint,
@@ -140,6 +140,21 @@ export class UserController {
   @Get('stats')
   getStats() {
     return this.userService.getStats();
+  }
+
+  @ApiOperation({
+    summary: 'Toggle founding member status',
+    description: 'Enable or disable founding member status for a user.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  @Patch(':user_id/founding-member')
+  async toggleFoundingMember(
+    @Param('user_id') user_id: string,
+  ) {
+    return this.userService.toggleFoundingMember(user_id);
   }
 
   @ApiOperation({

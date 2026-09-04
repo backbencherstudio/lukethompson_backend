@@ -76,6 +76,11 @@ export default () => ({
       secret: process.env.PAYPAL_SECRET,
       api: process.env.PAYPAL_API,
     },
+    reveneuecat: {
+      v1_api_key: process.env.REVENUECAT_API_KEY_V1,
+      v2_api_key: process.env.REVENUECAT_API_KEY_V2,
+      project_id: process.env.REVENUECAT_PROJECT_ID,
+    },
   },
 
   /**

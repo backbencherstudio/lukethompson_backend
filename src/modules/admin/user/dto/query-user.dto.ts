@@ -1,6 +1,13 @@
+// dto/query-user.dto.ts
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
+import {
+  IsEnum,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsBoolean,
+} from 'class-validator';
 import { Role } from 'src/common/guard/role/role.enum';
 
 export enum UserStatus {
@@ -40,6 +47,20 @@ export class QueryUserDto {
   @Transform(({ value }) => UserStatus[value.toUpperCase()] ?? undefined)
   @IsEnum(UserStatus)
   status?: UserStatus;
+
+  @ApiPropertyOptional({
+    description: 'Filter by founding member status',
+    example: true,
+    required: false,
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return undefined;
+  })
+  @IsBoolean()
+  founding_member?: boolean;
 
   @ApiPropertyOptional({
     description: 'Page number',

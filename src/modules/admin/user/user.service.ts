@@ -1,6 +1,10 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateFoundingMemberDto, UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { UserRepository } from '../../../common/repository/user/user.repository';
 import appConfig from '../../../config/app.config';
@@ -27,11 +31,29 @@ export class UserService {
   }
 
   async findAll(query: QueryUserDto) {
-    const { search, page = 1, limit = 10, type, status } = query;
+    const {
+      search,
+      page = 1,
+      limit = 10,
+      type,
+      status,
+      founding_member,
+    } = query;
+
     const skip = (page - 1) * limit;
+
+    // Convert founding_member to boolean if it's a string
+    let foundingMemberFilter: boolean | undefined;
+    if (founding_member !== undefined && founding_member !== null) {
+      foundingMemberFilter = founding_member === true;
+    }
+
     const where_condition: Prisma.UserWhereInput = {
       ...(type !== undefined && { type }),
       ...(status !== undefined && { status }),
+      ...(foundingMemberFilter !== undefined && {
+        founding_member: foundingMemberFilter,
+      }),
     };
 
     if (search) {
@@ -56,6 +78,7 @@ export class UserService {
           phone_number: true,
           status: true,
           created_at: true,
+          founding_member: true,
           _count: {
             select: { stop_logs: true },
           },
@@ -74,10 +97,11 @@ export class UserService {
         email: user.email,
         avatar: user.avatar,
         phone_number: user.phone_number,
-        subscription_plan: 'Free Plan', // Defaulting to Free Plan as no specific plan model found
+        subscription_plan: 'Free Plan',
         total_stops: user._count.stop_logs,
         created_at: user.created_at,
         status: statusLabel,
+        founding_member: user.founding_member || false,
       };
     });
 
@@ -101,6 +125,7 @@ export class UserService {
         id: true,
         name: true,
         email: true,
+        founding_member: true,
         type: true,
         phone_number: true,
         approved_at: true,
@@ -281,6 +306,69 @@ export class UserService {
         success: false,
         message: error.message,
       };
+    }
+  }
+
+  async toggleFoundingMember(user_id: string) {
+    try {
+      // Check if user exists
+      const existingUser = await this.prisma.user.findUnique({
+        where: { id: user_id },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          founding_member: true,
+        },
+      });
+
+      if (!existingUser) {
+        throw new NotFoundException(`User ${user_id} not found`);
+      }
+
+      // Toggle the current status
+      const newFoundingMemberStatus = !existingUser.founding_member;
+
+      const updatedUser = await this.prisma.user.update({
+        where: { id: user_id },
+        data: {
+          founding_member: newFoundingMemberStatus,
+          updated_at: new Date(),
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          founding_member: true,
+          updated_at: true,
+        },
+      });
+
+      const statusText = updatedUser.founding_member ? 'granted' : 'removed';
+
+      return {
+        success: true,
+        message: `Founding member status ${statusText} successfully for user ${
+          existingUser.email || existingUser.id
+        }`,
+        data: {
+          id: updatedUser.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          founding_member: updatedUser.founding_member,
+          updated_at: updatedUser.updated_at,
+        },
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      console.error('Error toggling founding member status:', error);
+
+      throw new InternalServerErrorException(
+        `Failed to toggle founding member status: ${error.message}`,
+      );
     }
   }
 }

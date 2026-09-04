@@ -24,6 +24,7 @@ import { PrometheusModule } from './prometheus/prometheus.module';
 import { RepositoryModule } from './common/repository/repository.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { RevenueCatModule } from './common/webhook/revenuecat/revenuecat.module';
+import { AssignSubscriptionModule } from './modules/admin/assign-subscription/assign-subscription.module';
 
 @Module({
   imports: [
@@ -82,6 +83,7 @@ import { RevenueCatModule } from './common/webhook/revenuecat/revenuecat.module'
     PaymentModule,
     PrometheusModule,
     RevenueCatModule,
+    AssignSubscriptionModule,
   ],
   controllers: [AppController],
   providers: [

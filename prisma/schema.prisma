@@ -56,6 +56,11 @@ model User {
   // billing id. e.g. stripe customer id
   billing_id String?
 
+  subscription_customer_id String? @unique
+  active_entitlements      Json?
+
+  founding_member Boolean? @default(false)
+
   accounts               Account[]
   receiver_notifications Notification[] @relation("receiver")
   sender_notifications   Notification[] @relation("sender")
@@ -77,6 +82,7 @@ model User {
 
   @@index([status])
   @@index([created_at])
+  @@index([subscription_customer_id])
   @@map("users")
 }
 
@@ -510,7 +516,7 @@ model StopLog {
 
   user_id             String?
   shipper_facility_id String?
-  broker_id           String?  // Add this line
+  broker_id           String? // Add this line
 
   // snapshots for evidence of stop logs
   facility_name        String
@@ -540,7 +546,7 @@ model StopLog {
   rating           ShipperFacilityRating?
   user             User?                  @relation(fields: [user_id], references: [id], onDelete: Cascade)
   shipper_facility ShipperFacility?       @relation(fields: [shipper_facility_id], references: [id], onDelete: Cascade)
-  broker           Broker?                @relation(fields: [broker_id], references: [id], onDelete: SetNull)  // Add this
+  broker           Broker?                @relation(fields: [broker_id], references: [id], onDelete: SetNull) // Add this
   arrival_location Location?              @relation("arrival_location", fields: [arrival_location_id], references: [id])
   facility_address Location?              @relation("facility_address", fields: [facility_address_id], references: [id])
   broker_ratings   BrokerRating[]
@@ -548,7 +554,7 @@ model StopLog {
   @@index([user_id])
   @@index([created_at])
   @@index([shipper_facility_id])
-  @@index([broker_id])  // Add this index
+  @@index([broker_id]) // Add this index
   @@map("stop_logs")
 }
 
@@ -637,10 +643,10 @@ model Broker {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  name        String
-  email       String
-  phone       String?
-  brokerId    String?   @unique
+  name     String
+  email    String
+  phone    String?
+  brokerId String? @unique
 
   location_id String?
   location    Location? @relation(fields: [location_id], references: [id], onDelete: SetNull)
